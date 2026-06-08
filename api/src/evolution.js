@@ -131,33 +131,55 @@ async function ensureInstance(forceRecreate = false) {
     return connectInstance();
 }
 
+async function getConnectionState() {
+    try {
+        const instances = await fetchInstances();
+        const name = INSTANCE();
+        const row = instances.find((r) => {
+            const n = r?.name || r?.instance?.instanceName || r?.instanceName;
+            return n === name;
+        });
+        if (row) {
+            const st = row?.connectionStatus?.state || row?.instance?.state || row?.state;
+            if (st) return st;
+        }
+        const data = await evolutionFetch(`/instance/connectionState/${INSTANCE()}`, { method: 'GET' });
+        return data?.instance?.state || data?.instance?.status || data?.state || 'close';
+    } catch {
+        return 'close';
+    }
+}
+
+function isConnectedState(state) {
+    return state === 'open' || state === 'connected';
+}
+
 async function getQrCode(forceRecreate = false) {
+    const current = await getConnectionState();
+    if (isConnectedState(current) && !forceRecreate) {
+        return { base64: null, pairingCode: null, state: 'open', alreadyConnected: true };
+    }
+
     let data = await ensureInstance(forceRecreate);
     let qr = parseQrPayload(data);
-    if (!qr.base64) {
+    if (!qr.base64 && !isConnectedState(qr.state)) {
         data = await connectInstance();
         qr = parseQrPayload(data);
     }
-    if (!qr.base64 && qr.state !== 'open') {
+    if (isConnectedState(qr.state)) {
+        return { base64: null, pairingCode: null, state: 'open', alreadyConnected: true };
+    }
+    if (!qr.base64 && forceRecreate) {
         await restartInstance();
         data = await connectInstance();
         qr = parseQrPayload(data);
     }
     if (!qr.base64) {
         throw new Error(
-            'Evolution no devolvió QR. Revisa: docker compose logs evolution-api --tail 30'
+            'Evolution no devolvió QR. Usa https://crm.camsoft.com.co/qr-whatsapp.html o Regenerar QR.'
         );
     }
     return qr;
-}
-
-async function getConnectionState() {
-    try {
-        const data = await evolutionFetch(`/instance/connectionState/${INSTANCE()}`, { method: 'GET' });
-        return data?.instance?.state || data?.instance?.status || data?.state || 'close';
-    } catch {
-        return 'close';
-    }
 }
 
 async function sendText(phone, text) {

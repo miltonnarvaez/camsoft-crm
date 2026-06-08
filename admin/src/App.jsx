@@ -81,7 +81,10 @@ function WhatsAppPanel({ token }) {
         try {
             const s = await api('/crm/whatsapp/status', token);
             setStatus(s);
-            if (s.connected) setQr(null);
+            if (s.connected) {
+                setQr(null);
+                setError('');
+            }
         } catch (err) {
             setError(err.message);
         }
@@ -93,7 +96,12 @@ function WhatsAppPanel({ token }) {
         try {
             const q = recreate ? '?recreate=1' : '';
             const data = await api(`/crm/whatsapp/qr${q}`, token);
-            setQr(data);
+            if (data.alreadyConnected) {
+                setQr(null);
+                setStatus({ connected: true, state: 'open' });
+            } else {
+                setQr(data);
+            }
         } catch (err) {
             setError(err.message);
         } finally {
@@ -103,42 +111,43 @@ function WhatsAppPanel({ token }) {
 
     useEffect(() => {
         refresh();
-        const t = setInterval(refresh, 8000);
+        const t = setInterval(refresh, 10000);
         return () => clearInterval(t);
     }, [refresh]);
 
-    useEffect(() => {
-        if (status && !status.connected) {
-            loadQr(false);
-        }
-    }, [status, loadQr]);
+    const connected = status?.connected;
 
     return (
         <div style={{ padding: 16 }}>
             <h2>WhatsApp (Evolution API)</h2>
-            <p className="muted">Escanea el QR con WhatsApp en el teléfono del negocio. Usa un número dedicado a CamSoft.</p>
-            <p>Estado: <strong>{status?.connected ? 'Conectado' : (status?.state || 'desconectado')}</strong></p>
-            {!status?.connected && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button type="button" onClick={() => loadQr(false)} disabled={loading}>
-                        {loading ? 'Generando QR…' : 'Mostrar código QR'}
-                    </button>
-                    <button type="button" className="secondary" onClick={() => loadQr(true)} disabled={loading}>
-                        Regenerar QR
-                    </button>
-                </div>
+            {connected ? (
+                <>
+                    <p style={{ color: '#4ade80', fontWeight: 600 }}>WhatsApp conectado correctamente.</p>
+                    <p className="muted">Los mensajes entrantes aparecerán en la pestaña Inbox.</p>
+                    <button type="button" className="secondary" onClick={refresh}>Actualizar estado</button>
+                </>
+            ) : (
+                <>
+                    <p className="muted">Escanea el QR con WhatsApp en el teléfono del negocio.</p>
+                    <p>Estado: <strong>{status?.state || 'desconectado'}</strong></p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => loadQr(false)} disabled={loading}>
+                            {loading ? 'Generando QR…' : 'Mostrar código QR'}
+                        </button>
+                        <button type="button" className="secondary" onClick={() => loadQr(true)} disabled={loading}>
+                            Regenerar QR
+                        </button>
+                        <a className="btn secondary" href="/qr-whatsapp.html" target="_blank" rel="noreferrer" style={{ padding: '10px 14px', textDecoration: 'none', borderRadius: 8 }}>
+                            Abrir QR en página
+                        </a>
+                    </div>
+                    {qr?.base64 && (
+                        <img className="qr" src={qr.base64.startsWith('data:') ? qr.base64 : `data:image/png;base64,${qr.base64}`} alt="QR WhatsApp" />
+                    )}
+                    {qr?.pairingCode && <p>Código emparejamiento: <strong>{qr.pairingCode}</strong></p>}
+                </>
             )}
-            {qr?.base64 && (
-                <img className="qr" src={qr.base64.startsWith('data:') ? qr.base64 : `data:image/png;base64,${qr.base64}`} alt="QR WhatsApp" />
-            )}
-            {qr?.pairingCode && <p>Código emparejamiento: <strong>{qr.pairingCode}</strong></p>}
             {error && <p style={{ color: '#f87171' }}>{error}</p>}
-            <p className="muted" style={{ marginTop: 16 }}>
-                El QR expira en ~60 s. Si no escaneas a tiempo, pulsa Regenerar QR.
-            </p>
-            <p className="muted">
-                Alternativa: abre <a href="https://wa.camsoft.com.co/manager" target="_blank" rel="noreferrer">wa.camsoft.com.co/manager</a> e ingresa la API Key de Evolution (.env).
-            </p>
         </div>
     );
 }

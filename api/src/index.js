@@ -227,7 +227,8 @@ app.patch('/crm/leads/:id', authMiddleware, async (req, res) => {
 
 app.get('/crm/whatsapp/status', authMiddleware, async (_req, res) => {
     const state = await getConnectionState();
-    res.json({ state, connected: state === 'open' });
+    const connected = state === 'open' || state === 'connected';
+    res.json({ state, connected });
 });
 
 app.get('/crm/whatsapp/qr', authMiddleware, async (req, res) => {
