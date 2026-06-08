@@ -31,7 +31,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   evolution-api:
-    image: evoapicloud/evolution-api:v2.2.3
+    image: evoapicloud/evolution-api:v2.3.6
     restart: unless-stopped
     depends_on:
       postgres:
@@ -54,6 +54,8 @@ services:
       CACHE_LOCAL_ENABLED: "false"
       CONFIG_SESSION_PHONE_CLIENT: CamSoft
       CONFIG_SESSION_PHONE_NAME: Chrome
+      CONFIG_SESSION_PHONE_VERSION: ${CONFIG_SESSION_PHONE_VERSION:-2.3000.1033773198}
+      NODE_OPTIONS: --dns-result-order=ipv4first
       LOG_LEVEL: ERROR
       WEBHOOK_GLOBAL_ENABLED: "true"
       WEBHOOK_GLOBAL_URL: ${CAMSOFT_WEBHOOK_URL:-http://host.docker.internal:3847/webhooks/whatsapp}
