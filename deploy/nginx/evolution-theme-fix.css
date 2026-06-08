@@ -1,0 +1,40 @@
+/* CamSoft — legibilidad en Evolution Manager (wa.camsoft.com.co/manager) */
+.dark .prose,
+.dark .prose p,
+.dark .prose span,
+.dark .prose li,
+.dark [class*="message"] p,
+.dark [class*="Message"] p,
+.dark [class*="bubble"] p,
+.dark [class*="Bubble"] {
+    color: #e2e8f0 !important;
+}
+
+.dark .bg-muted,
+.dark .bg-card,
+.dark .bg-popover,
+.dark [class*="bg-muted"],
+.dark [class*="bg-card"] {
+    color: #e2e8f0 !important;
+}
+
+.dark .bg-muted *,
+.dark .bg-card *:not(svg):not(path):not(img) {
+    color: inherit !important;
+}
+
+/* Burbujas de chat recibidas */
+.dark div[class*="rounded-lg"][class*="bg-"]:not([class*="bg-primary"]):not([class*="bg-blue"]) {
+    color: #f1f5f9 !important;
+}
+
+.dark div[class*="rounded-lg"][class*="bg-"] p,
+.dark div[class*="rounded-lg"][class*="bg-"] span {
+    color: #f1f5f9 !important;
+}
+
+/* Placeholder imagen rota */
+.dark [class*="Image couldn't"],
+.dark .text-muted-foreground {
+    color: #94a3b8 !important;
+}
