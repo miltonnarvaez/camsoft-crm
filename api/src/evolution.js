@@ -5,26 +5,41 @@ const KEY = () => process.env.EVOLUTION_API_KEY || '';
 const INSTANCE = () => process.env.EVOLUTION_INSTANCE || 'camsoft';
 
 async function evolutionFetch(path, options = {}) {
-    const res = await fetch(`${BASE()}${path}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            apikey: KEY(),
-            ...(options.headers || {})
-        }
-    });
-    const text = await res.text();
-    let data = {};
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25000);
     try {
-        data = text ? JSON.parse(text) : {};
-    } catch (_) {
-        data = { raw: text };
+        const res = await fetch(`${BASE()}${path}`, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                apikey: KEY(),
+                ...(options.headers || {})
+            }
+        });
+        const text = await res.text();
+        let data = {};
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (_) {
+            data = { raw: text };
+        }
+        if (!res.ok) {
+            const msg = data?.message || data?.error || data?.response?.message || res.statusText;
+            throw new Error(`Evolution API: ${msg}`);
+        }
+        return data;
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            throw new Error(`Evolution API no respondió a tiempo en ${BASE()}. ¿Está corriendo? docker compose ps evolution-api`);
+        }
+        if (err.cause?.code === 'ECONNREFUSED' || String(err.message).includes('fetch failed')) {
+            throw new Error(`Evolution API no accesible en ${BASE()}. Ejecuta: docker compose up -d evolution-api && sleep 20`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timer);
     }
-    if (!res.ok) {
-        const msg = data?.message || data?.error || data?.response?.message || res.statusText;
-        throw new Error(`Evolution API: ${msg}`);
-    }
-    return data;
 }
 
 function parseQrPayload(data) {
