@@ -22,13 +22,28 @@ function normalize(text) {
 }
 
 async function ensureBotFaqs() {
-    for (const [triggerKey, answer] of Object.entries(DEFAULT_FAQS)) {
-        await query(
-            `INSERT INTO bot_faqs (trigger_key, question, answer, sort_order)
-             VALUES ($1, $1, $2, 0)
-             ON CONFLICT (trigger_key) DO NOTHING`,
-            [triggerKey, answer]
-        );
+    try {
+        await query(`
+            CREATE TABLE IF NOT EXISTS bot_faqs (
+                id              SERIAL PRIMARY KEY,
+                trigger_key     VARCHAR(64) NOT NULL UNIQUE,
+                question        TEXT NOT NULL,
+                answer          TEXT NOT NULL,
+                sort_order      INT NOT NULL DEFAULT 0,
+                active          BOOLEAN NOT NULL DEFAULT TRUE
+            )
+        `);
+        for (const [triggerKey, answer] of Object.entries(DEFAULT_FAQS)) {
+            await query(
+                `INSERT INTO bot_faqs (trigger_key, question, answer, sort_order)
+                 VALUES ($1, $1, $2, 0)
+                 ON CONFLICT (trigger_key) DO NOTHING`,
+                [triggerKey, answer]
+            );
+        }
+        console.log('[bot] FAQs listas');
+    } catch (err) {
+        console.warn('[bot] ensureBotFaqs omitido (se usan textos por defecto):', err.message);
     }
 }
 

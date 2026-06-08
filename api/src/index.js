@@ -281,7 +281,11 @@ io.on('connection', (socket) => {
 });
 
 async function boot() {
-    await ensureAdminUser();
+    try {
+        await ensureAdminUser();
+    } catch (err) {
+        console.warn('[auth] ensureAdminUser:', err.message);
+    }
     await ensureBotFaqs();
     server.listen(PORT, '0.0.0.0', () => {
         console.log(`[camsoft-crm] API en puerto ${PORT}`);
@@ -289,6 +293,6 @@ async function boot() {
 }
 
 boot().catch((err) => {
-    console.error(err);
+    console.error('[boot] error fatal', err);
     process.exit(1);
 });
