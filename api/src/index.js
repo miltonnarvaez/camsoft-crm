@@ -14,7 +14,7 @@ const {
     listMessages,
     addMessage
 } = require('./chat');
-const { processBotMessage } = require('./bot');
+const { processBotMessage, ensureBotFaqs } = require('./bot');
 const {
     getQrCode,
     getConnectionState,
@@ -282,6 +282,7 @@ io.on('connection', (socket) => {
 
 async function boot() {
     await ensureAdminUser();
+    await ensureBotFaqs();
     server.listen(PORT, '0.0.0.0', () => {
         console.log(`[camsoft-crm] API en puerto ${PORT}`);
     });

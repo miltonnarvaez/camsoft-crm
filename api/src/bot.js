@@ -8,16 +8,42 @@ const MENU = [
     { key: 'contact', label: 'Datos de contacto' }
 ];
 
+const DEFAULT_FAQS = {
+    greeting: 'Hola, soy el asistente de CamSoft (Milton Narvaez). ¿En qué sector necesitas apoyo: público, salud, educación u otro?',
+    public: 'Desarrollamos portales gubernamentales, transparencia, PQRSD y gestión documental. ¿Tienes plazo definido para el proyecto?',
+    health: 'Trabajamos historias clínicas, citas, farmacia y telemedicina. Cuéntame el alcance que tienes en mente.',
+    education: 'Plataformas LMS, matrículas, evaluaciones y bibliotecas digitales. ¿Buscas MVP o migración de un sistema actual?',
+    human: 'Perfecto. Un asesor revisará tu mensaje pronto. También puedes escribir por WhatsApp desde este mismo chat si lo prefieres.',
+    contact: 'Correo: nf_alejo@yahoo.com · Tel: +57 317 374 2174. Respuesta habitual en 24–48 h hábiles.'
+};
+
 function normalize(text) {
     return (text || '').toLowerCase().trim();
 }
 
+async function ensureBotFaqs() {
+    for (const [triggerKey, answer] of Object.entries(DEFAULT_FAQS)) {
+        await query(
+            `INSERT INTO bot_faqs (trigger_key, question, answer, sort_order)
+             VALUES ($1, $1, $2, 0)
+             ON CONFLICT (trigger_key) DO NOTHING`,
+            [triggerKey, answer]
+        );
+    }
+}
+
 async function getFaq(key) {
-    const { rows } = await query(
-        'SELECT answer FROM bot_faqs WHERE trigger_key = $1 AND active = TRUE',
-        [key]
-    );
-    return rows[0]?.answer || null;
+    try {
+        const { rows } = await query(
+            'SELECT answer FROM bot_faqs WHERE trigger_key = $1 AND active = TRUE',
+            [key]
+        );
+        const answer = rows[0]?.answer?.trim();
+        if (answer) return answer;
+    } catch (err) {
+        console.warn('[bot] getFaq fallback', key, err.message);
+    }
+    return DEFAULT_FAQS[key] || null;
 }
 
 async function processBotMessage(conversationId, text) {
@@ -51,7 +77,11 @@ async function processBotMessage(conversationId, text) {
                 [conversationId, match.key]
             );
         }
-        return { reply: answer, hotLead, sector: match.key };
+        return {
+            reply: answer || DEFAULT_FAQS[match.key] || 'Gracias. Escribe *menu* para ver más opciones.',
+            hotLead,
+            sector: match.key
+        };
     }
 
     if (t.includes('whatsapp') || t.includes('wsp')) {
@@ -69,4 +99,4 @@ async function processBotMessage(conversationId, text) {
     };
 }
 
-module.exports = { processBotMessage, MENU };
+module.exports = { processBotMessage, ensureBotFaqs, MENU, DEFAULT_FAQS };
