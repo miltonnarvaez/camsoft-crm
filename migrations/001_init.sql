@@ -3,6 +3,7 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE SCHEMA IF NOT EXISTS evolution;
+CREATE SCHEMA IF NOT EXISTS evolution_api;
 CREATE SCHEMA IF NOT EXISTS n8n;
 
 -- Contactos (web o WhatsApp)

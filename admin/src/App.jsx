@@ -136,6 +136,9 @@ function WhatsAppPanel({ token }) {
             <p className="muted" style={{ marginTop: 16 }}>
                 El QR expira en ~60 s. Si no escaneas a tiempo, pulsa Regenerar QR.
             </p>
+            <p className="muted">
+                Alternativa: abre <a href="https://wa.camsoft.com.co/manager" target="_blank" rel="noreferrer">wa.camsoft.com.co/manager</a> e ingresa la API Key de Evolution (.env).
+            </p>
         </div>
     );
 }
