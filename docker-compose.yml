@@ -1,0 +1,81 @@
+# CamSoft CRM — servicios en el Droplet (PostgreSQL, Evolution API WhatsApp, n8n)
+# Uso: cp .env.example .env && docker compose up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-camsoft}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-camsoft_crm}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-camsoft}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  evolution-api:
+    image: atendai/evolution-api:v2.1.1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      SERVER_URL: ${EVOLUTION_PUBLIC_URL:-https://wa.camsoft.com.co}
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:?set EVOLUTION_API_KEY}
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER:-camsoft}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-camsoft_crm}?schema=evolution
+      DATABASE_CONNECTION_CLIENT_NAME: evolution
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379
+      CONFIG_SESSION_PHONE_CLIENT: CamSoft
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      WEBHOOK_GLOBAL_ENABLED: "true"
+      WEBHOOK_GLOBAL_URL: ${CAMSOFT_WEBHOOK_URL:-http://host.docker.internal:3847/webhooks/whatsapp}
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: "false"
+    ports:
+      - "127.0.0.1:8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-camsoft_crm}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-camsoft}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_POSTGRESDB_SCHEMA: n8n
+      N8N_HOST: ${N8N_HOST:-n8n.camsoft.com.co}
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: ${N8N_PUBLIC_URL:-https://n8n.camsoft.com.co}
+      GENERIC_TIMEZONE: America/Bogota
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  pgdata:
+  n8n_data:

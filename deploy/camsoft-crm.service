@@ -1,0 +1,15 @@
+[Unit]
+Description=CamSoft CRM API
+After=network.target docker.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/camsoft-crm/api
+EnvironmentFile=/var/www/camsoft-crm/.env
+ExecStart=/usr/bin/node src/index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

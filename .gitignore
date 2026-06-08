@@ -1,0 +1,7 @@
+.env
+node_modules/
+admin/dist/
+api/node_modules/
+admin/node_modules/
+*.log
+DEPLOY_CREDENTIALS.local.txt
