@@ -13,43 +13,133 @@ async function evolutionFetch(path, options = {}) {
             ...(options.headers || {})
         }
     });
-    const data = await res.json().catch(() => ({}));
+    const text = await res.text();
+    let data = {};
+    try {
+        data = text ? JSON.parse(text) : {};
+    } catch (_) {
+        data = { raw: text };
+    }
     if (!res.ok) {
-        const msg = data?.message || data?.error || res.statusText;
+        const msg = data?.message || data?.error || data?.response?.message || res.statusText;
         throw new Error(`Evolution API: ${msg}`);
     }
     return data;
 }
 
-async function ensureInstance() {
+function parseQrPayload(data) {
+    if (!data) {
+        return { base64: null, pairingCode: null, state: 'unknown' };
+    }
+    if (Array.isArray(data) && data[0]) {
+        return {
+            base64: data[0].base64 || null,
+            pairingCode: data[0].pairingCode || null,
+            state: 'connecting'
+        };
+    }
+    const nested = data.qrcode;
+    if (Array.isArray(nested) && nested[0]) {
+        return {
+            base64: nested[0].base64 || null,
+            pairingCode: nested[0].pairingCode || null,
+            state: data.instance?.status || data.instance?.state || 'connecting'
+        };
+    }
+    return {
+        base64: data.base64 || nested?.base64 || null,
+        pairingCode: data.pairingCode || nested?.pairingCode || null,
+        state: data.instance?.status || data.instance?.state || data.state || 'connecting'
+    };
+}
+
+async function fetchInstances() {
     try {
-        await evolutionFetch(`/instance/connect/${INSTANCE()}`, { method: 'GET' });
-    } catch (_) {
-        await evolutionFetch('/instance/create', {
-            method: 'POST',
-            body: JSON.stringify({
-                instanceName: INSTANCE(),
-                integration: 'WHATSAPP-BAILEYS',
-                qrcode: true
-            })
-        });
+        const data = await evolutionFetch('/instance/fetchInstances', { method: 'GET' });
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.instances)) return data.instances;
+        return [];
+    } catch {
+        return [];
     }
 }
 
-async function getQrCode() {
-    await ensureInstance();
-    const data = await evolutionFetch(`/instance/connect/${INSTANCE()}`, { method: 'GET' });
-    return {
-        base64: data?.base64 || data?.qrcode?.base64 || null,
-        pairingCode: data?.pairingCode || null,
-        state: data?.instance?.state || data?.state || 'unknown'
-    };
+function instanceExists(instances) {
+    const name = INSTANCE();
+    return instances.some((row) => {
+        const n = row?.name || row?.instance?.instanceName || row?.instanceName;
+        return n === name;
+    });
+}
+
+async function deleteInstance() {
+    try {
+        await evolutionFetch(`/instance/delete/${INSTANCE()}`, { method: 'DELETE' });
+    } catch (_) {
+        try {
+            await evolutionFetch(`/instance/logout/${INSTANCE()}`, { method: 'DELETE' });
+        } catch (_e) {}
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+}
+
+async function createInstance() {
+    return evolutionFetch('/instance/create', {
+        method: 'POST',
+        body: JSON.stringify({
+            instanceName: INSTANCE(),
+            integration: 'WHATSAPP-BAILEYS',
+            qrcode: true
+        })
+    });
+}
+
+async function connectInstance() {
+    return evolutionFetch(`/instance/connect/${INSTANCE()}`, { method: 'GET' });
+}
+
+async function restartInstance() {
+    try {
+        await evolutionFetch(`/instance/restart/${INSTANCE()}`, { method: 'POST' });
+        await new Promise((r) => setTimeout(r, 2500));
+    } catch (_) {}
+}
+
+async function ensureInstance(forceRecreate = false) {
+    if (forceRecreate) {
+        await deleteInstance();
+    }
+    const instances = await fetchInstances();
+    if (!instanceExists(instances)) {
+        return createInstance();
+    }
+    return connectInstance();
+}
+
+async function getQrCode(forceRecreate = false) {
+    let data = await ensureInstance(forceRecreate);
+    let qr = parseQrPayload(data);
+    if (!qr.base64) {
+        data = await connectInstance();
+        qr = parseQrPayload(data);
+    }
+    if (!qr.base64 && qr.state !== 'open') {
+        await restartInstance();
+        data = await connectInstance();
+        qr = parseQrPayload(data);
+    }
+    if (!qr.base64) {
+        throw new Error(
+            'Evolution no devolvió QR. Revisa: docker compose logs evolution-api --tail 30'
+        );
+    }
+    return qr;
 }
 
 async function getConnectionState() {
     try {
         const data = await evolutionFetch(`/instance/connectionState/${INSTANCE()}`, { method: 'GET' });
-        return data?.instance?.state || data?.state || 'close';
+        return data?.instance?.state || data?.instance?.status || data?.state || 'close';
     } catch {
         return 'close';
     }

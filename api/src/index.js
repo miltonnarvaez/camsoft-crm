@@ -230,9 +230,10 @@ app.get('/crm/whatsapp/status', authMiddleware, async (_req, res) => {
     res.json({ state, connected: state === 'open' });
 });
 
-app.get('/crm/whatsapp/qr', authMiddleware, async (_req, res) => {
+app.get('/crm/whatsapp/qr', authMiddleware, async (req, res) => {
     try {
-        const qr = await getQrCode();
+        const recreate = req.query.recreate === '1' || req.query.recreate === 'true';
+        const qr = await getQrCode(recreate);
         res.json(qr);
     } catch (e) {
         res.status(500).json({ error: e.message });

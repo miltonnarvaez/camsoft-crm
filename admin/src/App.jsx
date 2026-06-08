@@ -75,6 +75,7 @@ function WhatsAppPanel({ token }) {
     const [status, setStatus] = useState(null);
     const [qr, setQr] = useState(null);
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const refresh = useCallback(async () => {
         try {
@@ -86,15 +87,19 @@ function WhatsAppPanel({ token }) {
         }
     }, [token]);
 
-    async function loadQr() {
+    const loadQr = useCallback(async (recreate = false) => {
         setError('');
+        setLoading(true);
         try {
-            const data = await api('/crm/whatsapp/qr', token);
+            const q = recreate ? '?recreate=1' : '';
+            const data = await api(`/crm/whatsapp/qr${q}`, token);
             setQr(data);
         } catch (err) {
             setError(err.message);
+        } finally {
+            setLoading(false);
         }
-    }
+    }, [token]);
 
     useEffect(() => {
         refresh();
@@ -102,13 +107,26 @@ function WhatsAppPanel({ token }) {
         return () => clearInterval(t);
     }, [refresh]);
 
+    useEffect(() => {
+        if (status && !status.connected) {
+            loadQr(false);
+        }
+    }, [status, loadQr]);
+
     return (
         <div style={{ padding: 16 }}>
             <h2>WhatsApp (Evolution API)</h2>
             <p className="muted">Escanea el QR con WhatsApp en el teléfono del negocio. Usa un número dedicado a CamSoft.</p>
             <p>Estado: <strong>{status?.connected ? 'Conectado' : (status?.state || 'desconectado')}</strong></p>
             {!status?.connected && (
-                <button type="button" onClick={loadQr}>Mostrar código QR</button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button type="button" onClick={() => loadQr(false)} disabled={loading}>
+                        {loading ? 'Generando QR…' : 'Mostrar código QR'}
+                    </button>
+                    <button type="button" className="secondary" onClick={() => loadQr(true)} disabled={loading}>
+                        Regenerar QR
+                    </button>
+                </div>
             )}
             {qr?.base64 && (
                 <img className="qr" src={qr.base64.startsWith('data:') ? qr.base64 : `data:image/png;base64,${qr.base64}`} alt="QR WhatsApp" />
@@ -116,7 +134,7 @@ function WhatsAppPanel({ token }) {
             {qr?.pairingCode && <p>Código emparejamiento: <strong>{qr.pairingCode}</strong></p>}
             {error && <p style={{ color: '#f87171' }}>{error}</p>}
             <p className="muted" style={{ marginTop: 16 }}>
-                API no oficial vía Evolution. Evita spam; WhatsApp puede restringir números que violen sus términos.
+                El QR expira en ~60 s. Si no escaneas a tiempo, pulsa Regenerar QR.
             </p>
         </div>
     );
