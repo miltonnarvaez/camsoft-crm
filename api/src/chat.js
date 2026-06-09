@@ -73,7 +73,7 @@ async function handleVisitorMessage(visitorToken, body) {
 
 async function handleAgentMessage(conversationId, body, agentName) {
     const { rows } = await query(
-        `SELECT c.*, ct.phone, ct.source FROM conversations c
+        `SELECT c.*, ct.phone, ct.external_id, ct.source FROM conversations c
          JOIN contacts ct ON ct.id = c.contact_id WHERE c.id = $1`,
         [conversationId]
     );
@@ -86,11 +86,15 @@ async function handleAgentMessage(conversationId, body, agentName) {
         [conversationId]
     );
 
-    if (conv.channel === 'whatsapp' && conv.phone && process.env.WHATSAPP_ENABLED !== 'false') {
-        try {
-            await sendText(conv.phone, body);
-        } catch (err) {
-            console.error('[whatsapp] send error', err.message);
+    if (conv.channel === 'whatsapp' && process.env.WHATSAPP_ENABLED !== 'false') {
+        if (!conv.phone && !conv.external_id) {
+            console.error('[whatsapp] send error: contacto sin teléfono ni JID');
+        } else {
+            try {
+                await sendText(conv.phone, body, conv.external_id);
+            } catch (err) {
+                console.error('[whatsapp] send error', conv.phone || conv.external_id, err.message);
+            }
         }
     }
 

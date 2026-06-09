@@ -25,7 +25,13 @@ async function evolutionFetch(path, options = {}) {
             data = { raw: text };
         }
         if (!res.ok) {
-            const msg = data?.message || data?.error || data?.response?.message || res.statusText;
+            const msg =
+                data?.message ||
+                data?.error ||
+                data?.response?.message ||
+                (typeof data?.response === 'string' ? data.response : null) ||
+                (data?.raw ? String(data.raw).slice(0, 200) : null) ||
+                res.statusText;
             throw new Error(`Evolution API: ${msg}`);
         }
         return data;
@@ -182,41 +188,111 @@ async function getQrCode(forceRecreate = false) {
     return qr;
 }
 
-async function sendText(phone, text) {
-    const number = phone.replace(/\D/g, '');
-    return evolutionFetch(`/message/sendText/${INSTANCE()}`, {
-        method: 'POST',
-        body: JSON.stringify({
-            number,
-            text,
-            delay: 800
-        })
-    });
-}
-
 function extractPhoneFromJid(remoteJid) {
     if (!remoteJid) return null;
-    return remoteJid.split('@')[0].replace(/\D/g, '');
+    const raw = String(remoteJid);
+    if (raw.includes('@lid')) return null;
+    const digits = raw.split('@')[0].replace(/\D/g, '');
+    return digits.length >= 8 ? digits : null;
 }
 
-async function findOrCreateWhatsappContact(phone, name) {
-    const { rows: existing } = await query(
-        `SELECT id FROM contacts WHERE source = 'whatsapp' AND phone = $1`,
-        [phone]
-    );
-    if (existing[0]) {
-        if (name) {
-            await query(
-                `UPDATE contacts SET name = COALESCE(NULLIF(name, ''), $2), updated_at = NOW() WHERE id = $1`,
-                [existing[0].id, name]
-            );
+/** WhatsApp nuevo usa @lid; el teléfono real viene en senderPn / cleanedSenderPn. */
+function resolveWhatsappDestination(key = {}, payload = {}) {
+    const remoteJid = key.remoteJid || key.remoteJidAlt || payload.sender || null;
+    const phone =
+        key.cleanedSenderPn ||
+        extractPhoneFromJid(key.senderPn) ||
+        extractPhoneFromJid(key.participant) ||
+        extractPhoneFromJid(remoteJid) ||
+        extractPhoneFromJid(payload.sender);
+
+    const jid =
+        key.senderPn ||
+        (remoteJid && !String(remoteJid).includes('@lid') ? remoteJid : null) ||
+        (phone ? `${phone}@s.whatsapp.net` : null);
+
+    return {
+        phone: phone || null,
+        jid,
+        remoteJid: remoteJid || jid || null
+    };
+}
+
+function buildSendTargets(phone, jid) {
+    const targets = [];
+    if (jid) targets.push(String(jid));
+    if (phone) {
+        const digits = String(phone).replace(/\D/g, '');
+        if (digits) {
+            targets.push(digits);
+            targets.push(`${digits}@s.whatsapp.net`);
         }
-        return existing[0].id;
     }
+    return [...new Set(targets.filter(Boolean))];
+}
+
+async function sendText(phone, text, jid = null) {
+    if (!text?.trim()) throw new Error('Mensaje vacío');
+
+    const state = await getConnectionState();
+    if (!isConnectedState(state)) {
+        throw new Error(`WhatsApp desconectado (estado: ${state}). Reconecta en CRM → pestaña WA.`);
+    }
+
+    const targets = buildSendTargets(phone, jid);
+    if (!targets.length) throw new Error('Sin número o JID de destino para WhatsApp');
+
+    let lastErr;
+    for (const number of targets) {
+        try {
+            return await evolutionFetch(`/message/sendText/${INSTANCE()}`, {
+                method: 'POST',
+                body: JSON.stringify({ number, text, delay: 800 })
+            });
+        } catch (err) {
+            lastErr = err;
+            console.warn('[whatsapp] sendText falló para', number, '—', err.message);
+        }
+    }
+    throw lastErr || new Error('No se pudo enviar el mensaje por WhatsApp');
+}
+
+async function findOrCreateWhatsappContact(phone, name, externalId = null) {
+    const ext = externalId || (phone ? `${phone}@s.whatsapp.net` : null);
+
+    let existing = null;
+    if (phone) {
+        const { rows } = await query(
+            `SELECT id FROM contacts WHERE source = 'whatsapp' AND phone = $1`,
+            [phone]
+        );
+        existing = rows[0];
+    }
+    if (!existing && ext) {
+        const { rows } = await query(
+            `SELECT id FROM contacts WHERE source = 'whatsapp' AND external_id = $1`,
+            [ext]
+        );
+        existing = rows[0];
+    }
+
+    if (existing) {
+        await query(
+            `UPDATE contacts SET
+                name = COALESCE(NULLIF($2, ''), name),
+                phone = COALESCE($3, phone),
+                external_id = COALESCE($4, external_id),
+                updated_at = NOW()
+             WHERE id = $1`,
+            [existing.id, name || '', phone || null, ext]
+        );
+        return existing.id;
+    }
+
     const { rows } = await query(
         `INSERT INTO contacts (name, phone, source, external_id)
-         VALUES ($1, $2, 'whatsapp', $2) RETURNING id`,
-        [name || `WhatsApp ${phone}`, phone]
+         VALUES ($1, $2, 'whatsapp', $3) RETURNING id`,
+        [name || (phone ? `WhatsApp ${phone}` : 'WhatsApp'), phone, ext]
     );
     return rows[0].id;
 }
@@ -249,6 +325,7 @@ module.exports = {
     getConnectionState,
     sendText,
     extractPhoneFromJid,
+    resolveWhatsappDestination,
     findOrCreateWhatsappContact,
     findOrCreateWhatsappConversation
 };

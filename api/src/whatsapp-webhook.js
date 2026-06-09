@@ -1,7 +1,7 @@
 const { processBotMessage } = require('./bot');
 const { addMessage } = require('./chat');
 const {
-    extractPhoneFromJid,
+    resolveWhatsappDestination,
     findOrCreateWhatsappContact,
     findOrCreateWhatsappConversation,
     sendText
@@ -44,16 +44,16 @@ function parseIncomingMessages(payload) {
     return rows
         .map((row) => {
             const key = row.key || {};
-            const remoteJid = key.remoteJid || row.remoteJid || payload.sender;
+            const dest = resolveWhatsappDestination(key, payload);
             const text = extractText(row);
             return {
                 key,
-                remoteJid,
+                ...dest,
                 text,
                 pushName: row.pushName || key.pushName || payload.pushName || null
             };
         })
-        .filter((row) => row.text && row.remoteJid && !row.key.fromMe);
+        .filter((row) => row.text && (row.phone || row.jid || row.remoteJid) && !row.key.fromMe);
 }
 
 async function handleWhatsappWebhook(payload, emitConversation) {
@@ -64,10 +64,11 @@ async function handleWhatsappWebhook(payload, emitConversation) {
     for (const item of items) {
         if (String(item.remoteJid).includes('@g.us')) continue;
 
-        const phone = extractPhoneFromJid(item.remoteJid);
-        if (!phone) continue;
-
-        const contactId = await findOrCreateWhatsappContact(phone, item.pushName);
+        const contactId = await findOrCreateWhatsappContact(
+            item.phone,
+            item.pushName,
+            item.jid || item.remoteJid
+        );
         const conversationId = await findOrCreateWhatsappConversation(contactId);
 
         const visitorMsg = await addMessage(conversationId, 'visitor', item.text, { channel: 'whatsapp' });
@@ -78,9 +79,9 @@ async function handleWhatsappWebhook(payload, emitConversation) {
 
         if (process.env.WHATSAPP_BOT_REPLY !== 'false') {
             try {
-                await sendText(phone, botResult.reply);
+                await sendText(item.phone, botResult.reply, item.jid || item.remoteJid);
             } catch (err) {
-                console.error('[whatsapp] auto-reply error', phone, err.message);
+                console.error('[whatsapp] auto-reply error', item.phone || item.jid, err.message);
             }
         }
         processed += 1;
