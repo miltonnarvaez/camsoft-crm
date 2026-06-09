@@ -14,13 +14,11 @@ const {
     listMessages,
     addMessage
 } = require('./chat');
-const { processBotMessage, ensureBotFaqs } = require('./bot');
+const { ensureBotFaqs } = require('./bot');
+const { handleWhatsappWebhook } = require('./whatsapp-webhook');
 const {
     getQrCode,
     getConnectionState,
-    extractPhoneFromJid,
-    findOrCreateWhatsappContact,
-    findOrCreateWhatsappConversation,
     sendText
 } = require('./evolution');
 
@@ -110,42 +108,9 @@ app.post('/chat/:visitorToken/message', async (req, res) => {
 app.post('/webhooks/whatsapp', async (req, res) => {
     res.sendStatus(200);
     try {
-        const payload = req.body || {};
-        const event = payload.event || payload.type;
-        if (!event || !String(event).toLowerCase().includes('message')) return;
-
-        const data = payload.data || payload;
-        const key = data.key || {};
-        if (key.fromMe) return;
-
-        const remoteJid = key.remoteJid || data.remoteJid;
-        if (!remoteJid || String(remoteJid).includes('@g.us')) return;
-
-        const phone = extractPhoneFromJid(remoteJid);
-        const text =
-            data.message?.conversation ||
-            data.message?.extendedTextMessage?.text ||
-            data.message?.buttonsResponseMessage?.selectedDisplayText ||
-            data.text ||
-            '';
-        if (!text.trim()) return;
-
-        const pushName = data.pushName || key.pushName || null;
-        const contactId = await findOrCreateWhatsappContact(phone, pushName);
-        const conversationId = await findOrCreateWhatsappConversation(contactId);
-
-        const visitorMsg = await addMessage(conversationId, 'visitor', text.trim(), { channel: 'whatsapp' });
-        const botResult = await processBotMessage(conversationId, text);
-        const botMsg = await addMessage(conversationId, 'bot', botResult.reply);
-
-        emitConversation(conversationId, 'message:new', { messages: [visitorMsg, botMsg] });
-
-        if (process.env.WHATSAPP_BOT_REPLY !== 'false') {
-            try {
-                await sendText(phone, botResult.reply);
-            } catch (err) {
-                console.error('[whatsapp] auto-reply error', err.message);
-            }
+        const result = await handleWhatsappWebhook(req.body || {}, emitConversation);
+        if (result.processed) {
+            console.log('[webhook whatsapp] procesados:', result.processed);
         }
     } catch (err) {
         console.error('[webhook whatsapp]', err.message);

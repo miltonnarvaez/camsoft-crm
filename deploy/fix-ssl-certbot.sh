@@ -29,22 +29,12 @@ sleep 3
 curl -sf http://127.0.0.1:3847/health && echo ""
 
 echo ""
-echo "==> Paso 2: Crear certificados SSL con certbot"
-certbot --nginx \
-    -d api.camsoft.com.co \
-    -d crm.camsoft.com.co \
-    -d wa.camsoft.com.co \
-    -d n8n.camsoft.com.co \
-    --non-interactive --agree-tos -m nf_alejo@yahoo.com \
-    || {
-    echo ""
-    echo "Si certbot falló, ejecuta manualmente:"
-    echo "  certbot --nginx -d api.camsoft.com.co -d crm.camsoft.com.co -d wa.camsoft.com.co -d n8n.camsoft.com.co"
-    echo ""
-    echo "Mientras tanto prueba HTTP:"
-    echo "  http://api.camsoft.com.co/health"
-    exit 0
-    }
+echo "==> Paso 2: Crear certificados SSL (uno por subdominio)"
+for d in api.camsoft.com.co crm.camsoft.com.co wa.camsoft.com.co n8n.camsoft.com.co; do
+    certbot certonly --nginx -d "$d" \
+        --non-interactive --agree-tos -m nf_alejo@yahoo.com \
+        --keep-until-expiring || echo "(cert $d: omitido)"
+done
 
 echo ""
 echo "==> Paso 3: Configs SSL finales"
