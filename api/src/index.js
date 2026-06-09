@@ -16,6 +16,7 @@ const {
 } = require('./chat');
 const { ensureBotFaqs } = require('./bot');
 const { handleWhatsappWebhook } = require('./whatsapp-webhook');
+const { startWhatsappPoller } = require('./whatsapp-poller');
 const {
     getQrCode,
     getConnectionState,
@@ -259,6 +260,7 @@ async function boot() {
     }
     await ensureBotFaqs();
     await ensureInstanceWebhook();
+    startWhatsappPoller(emitConversation);
     server.listen(PORT, '0.0.0.0', () => {
         console.log(`[camsoft-crm] API en puerto ${PORT}`);
     });

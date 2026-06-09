@@ -58,7 +58,7 @@ services:
       NODE_OPTIONS: --dns-result-order=ipv4first
       LOG_LEVEL: ERROR
       WEBHOOK_GLOBAL_ENABLED: "true"
-      WEBHOOK_GLOBAL_URL: ${CAMSOFT_WEBHOOK_URL:-https://api.camsoft.com.co/webhooks/whatsapp}
+      WEBHOOK_GLOBAL_URL: ${CAMSOFT_WEBHOOK_URL:-http://host.docker.internal:3847/webhooks/whatsapp}
       WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: "false"
       WEBHOOK_EVENTS_MESSAGES_UPSERT: "true"
       WEBHOOK_EVENTS_CONNECTION_UPDATE: "true"

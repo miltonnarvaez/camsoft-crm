@@ -30,9 +30,13 @@ function extractText(data) {
 
 /** Normaliza payloads Evolution API v2 (objeto único o array messages). */
 function parseIncomingMessages(payload) {
-    if (!isIncomingMessageEvent(payload.event || payload.type)) return [];
-
+    const event = payload.event || payload.type;
     const data = payload.data || payload;
+    const looksLikeMessage = data?.key?.remoteJid || data?.message || data?.messages;
+
+    if (event && !isIncomingMessageEvent(event) && !looksLikeMessage) return [];
+    if (!event && !looksLikeMessage) return [];
+
     const rows = Array.isArray(data?.messages)
         ? data.messages
         : Array.isArray(data)
@@ -83,7 +87,10 @@ async function handleWhatsappWebhook(payload, emitConversation) {
         );
         const conversationId = await findOrCreateWhatsappConversation(contactId);
 
-        const visitorMsg = await addMessage(conversationId, 'visitor', item.text, { channel: 'whatsapp' });
+        const visitorMsg = await addMessage(conversationId, 'visitor', item.text, {
+            channel: 'whatsapp',
+            waMsgId: item.key?.id || null
+        });
         const botResult = await processBotMessage(conversationId, item.text);
         const botMsg = await addMessage(conversationId, 'bot', botResult.reply);
 

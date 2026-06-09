@@ -105,7 +105,9 @@ async function deleteInstance() {
 }
 
 function webhookConfig() {
-    const url = process.env.CAMSOFT_WEBHOOK_URL || 'https://api.camsoft.com.co/webhooks/whatsapp';
+    const url =
+        process.env.CAMSOFT_WEBHOOK_URL ||
+        'http://host.docker.internal:3847/webhooks/whatsapp';
     return {
         enabled: true,
         url,
