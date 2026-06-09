@@ -32,10 +32,11 @@ function extractText(data) {
 function parseIncomingMessages(payload) {
     const event = payload.event || payload.type;
     const data = payload.data || payload;
-    const looksLikeMessage = data?.key?.remoteJid || data?.message || data?.messages;
 
-    if (event && !isIncomingMessageEvent(event) && !looksLikeMessage) return [];
-    if (!event && !looksLikeMessage) return [];
+    const isMessageEvent = event ? isIncomingMessageEvent(event) : false;
+    const isMessagePayload = !event && data?.key?.remoteJid && extractText(data);
+
+    if (!isMessageEvent && !isMessagePayload) return [];
 
     const rows = Array.isArray(data?.messages)
         ? data.messages

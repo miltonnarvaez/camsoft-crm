@@ -30,20 +30,14 @@ sleep 15
 APIKEY=$(grep ^EVOLUTION_API_KEY= .env | cut -d= -f2-)
 
 echo ""
-echo "==> Configurar webhook instancia (URL interna)"
-for URL in "$WEBHOOK_INTERNAL" "$WEBHOOK_GATEWAY"; do
-    echo "Probando URL: $URL"
-    RES=$(curl -s -w "\n%{http_code}" -X POST -H "apikey: ${APIKEY}" -H "Content-Type: application/json" \
-        "http://127.0.0.1:8080/webhook/set/camsoft" \
-        -d "{\"webhook\":{\"enabled\":true,\"url\":\"${URL}\",\"events\":[\"MESSAGES_UPSERT\"]}}")
-    CODE=$(echo "$RES" | tail -1)
-    if [ "$CODE" = "200" ] || [ "$CODE" = "201" ]; then
-        echo "OK webhook → $URL"
-        sed -i "s|^CAMSOFT_WEBHOOK_URL=.*|CAMSOFT_WEBHOOK_URL=${URL}|" "$ENV_FILE"
-        break
-    fi
-    echo "HTTP $CODE — probando siguiente..."
-done
+echo "==> Solo evento MESSAGES_UPSERT (desactiva contacts.update etc.)"
+curl -sf -X POST -H "apikey: ${APIKEY}" -H "Content-Type: application/json" \
+    "http://127.0.0.1:8080/webhook/set/camsoft" \
+    -d "{\"webhook\":{\"enabled\":true,\"url\":\"${WEBHOOK_INTERNAL}\",\"events\":[\"MESSAGES_UPSERT\"]}}" \
+    && echo "OK webhook MESSAGES_UPSERT" || echo "FALLO webhook"
+
+echo ""
+echo "Verifica en Manager que SOLO MESSAGES_UPSERT esté ON y clic Guardar"
 
 echo ""
 curl -sf -H "apikey: ${APIKEY}" "http://127.0.0.1:8080/webhook/find/camsoft" || true

@@ -341,11 +341,13 @@ async function findOrCreateWhatsappContact(phone, name, externalId = null) {
     if (existing) {
         await query(
             `UPDATE contacts SET
-                name = COALESCE(NULLIF($2, ''), name),
-                phone = CASE WHEN $3 IS NOT NULL THEN $3
-                        WHEN $4 LIKE '%@lid' THEN NULL
-                        ELSE phone END,
-                external_id = COALESCE(NULLIF($4, ''), external_id),
+                name = COALESCE(NULLIF($2::text, ''), name),
+                phone = CASE
+                    WHEN $3::text IS NOT NULL THEN $3::text
+                    WHEN $4::text LIKE '%@lid' THEN NULL
+                    ELSE phone
+                END,
+                external_id = COALESCE(NULLIF($4::text, ''), external_id),
                 updated_at = NOW()
              WHERE id = $1`,
             [existing.id, name || '', normalizedPhone, ext]
@@ -355,7 +357,7 @@ async function findOrCreateWhatsappContact(phone, name, externalId = null) {
 
     const { rows } = await query(
         `INSERT INTO contacts (name, phone, source, external_id)
-         VALUES ($1, $2, 'whatsapp', $3) RETURNING id`,
+         VALUES ($1::text, $2::text, 'whatsapp', $3::text) RETURNING id`,
         [name || (normalizedPhone ? `WhatsApp ${normalizedPhone}` : 'WhatsApp'), normalizedPhone, ext]
     );
     return rows[0].id;
