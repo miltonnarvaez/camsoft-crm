@@ -19,7 +19,8 @@ const { handleWhatsappWebhook } = require('./whatsapp-webhook');
 const {
     getQrCode,
     getConnectionState,
-    sendText
+    sendText,
+    ensureInstanceWebhook
 } = require('./evolution');
 
 const PORT = Number(process.env.PORT || 3847);
@@ -252,6 +253,7 @@ async function boot() {
         console.warn('[auth] ensureAdminUser:', err.message);
     }
     await ensureBotFaqs();
+    await ensureInstanceWebhook();
     server.listen(PORT, '0.0.0.0', () => {
         console.log(`[camsoft-crm] API en puerto ${PORT}`);
     });

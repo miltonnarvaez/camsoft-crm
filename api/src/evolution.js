@@ -104,13 +104,43 @@ async function deleteInstance() {
     await new Promise((r) => setTimeout(r, 1500));
 }
 
+function webhookConfig() {
+    const url = process.env.CAMSOFT_WEBHOOK_URL || 'http://host.docker.internal:3847/webhooks/whatsapp';
+    return {
+        enabled: true,
+        url,
+        byEvents: false,
+        base64: false,
+        events: ['MESSAGES_UPSERT']
+    };
+}
+
+async function ensureInstanceWebhook() {
+    try {
+        await evolutionFetch(`/webhook/set/${INSTANCE()}`, {
+            method: 'POST',
+            body: JSON.stringify({
+                enabled: true,
+                url: webhookConfig().url,
+                webhookByEvents: false,
+                webhookBase64: false,
+                events: ['MESSAGES_UPSERT']
+            })
+        });
+        console.log('[evolution] webhook instancia:', webhookConfig().url);
+    } catch (err) {
+        console.warn('[evolution] ensureInstanceWebhook:', err.message);
+    }
+}
+
 async function createInstance() {
     return evolutionFetch('/instance/create', {
         method: 'POST',
         body: JSON.stringify({
             instanceName: INSTANCE(),
             integration: 'WHATSAPP-BAILEYS',
-            qrcode: true
+            qrcode: true,
+            webhook: webhookConfig()
         })
     });
 }
@@ -196,42 +226,54 @@ function extractPhoneFromJid(remoteJid) {
     return digits.length >= 8 ? digits : null;
 }
 
+function normalizePhoneDigits(phone) {
+    if (!phone) return null;
+    let d = String(phone).replace(/\D/g, '');
+    if (!d) return null;
+    if (d.length === 10 && d.startsWith('3')) d = `57${d}`;
+    return d;
+}
+
 /** WhatsApp nuevo usa @lid; el teléfono real viene en senderPn / cleanedSenderPn. */
 function resolveWhatsappDestination(key = {}, payload = {}) {
     const remoteJid = key.remoteJid || key.remoteJidAlt || payload.sender || null;
-    const phone =
+    const phone = normalizePhoneDigits(
         key.cleanedSenderPn ||
         extractPhoneFromJid(key.senderPn) ||
         extractPhoneFromJid(key.participant) ||
-        extractPhoneFromJid(remoteJid) ||
-        extractPhoneFromJid(payload.sender);
+        extractPhoneFromJid(key.remoteJidAlt) ||
+        (remoteJid && !String(remoteJid).includes('@lid') ? extractPhoneFromJid(remoteJid) : null) ||
+        extractPhoneFromJid(payload.sender)
+    );
 
-    const jid =
+    const sendJid =
         key.senderPn ||
+        (remoteJid && String(remoteJid).includes('@lid') ? remoteJid : null) ||
+        key.remoteJidAlt ||
         (remoteJid && !String(remoteJid).includes('@lid') ? remoteJid : null) ||
         (phone ? `${phone}@s.whatsapp.net` : null);
 
     return {
-        phone: phone || null,
-        jid,
-        remoteJid: remoteJid || jid || null
+        phone,
+        jid: sendJid,
+        remoteJid: remoteJid || sendJid || null
     };
 }
 
-function buildSendTargets(phone, jid) {
+function buildSendTargets(phone, jid, remoteJid) {
     const targets = [];
-    if (jid) targets.push(String(jid));
-    if (phone) {
-        const digits = String(phone).replace(/\D/g, '');
-        if (digits) {
-            targets.push(digits);
-            targets.push(`${digits}@s.whatsapp.net`);
-        }
+    for (const j of [jid, remoteJid]) {
+        if (j && String(j).includes('@')) targets.push(String(j));
+    }
+    const digits = normalizePhoneDigits(phone);
+    if (digits) {
+        targets.push(digits);
+        targets.push(`${digits}@s.whatsapp.net`);
     }
     return [...new Set(targets.filter(Boolean))];
 }
 
-async function sendText(phone, text, jid = null) {
+async function sendText(phone, text, jid = null, remoteJid = null) {
     if (!text?.trim()) throw new Error('Mensaje vacío');
 
     const state = await getConnectionState();
@@ -239,16 +281,18 @@ async function sendText(phone, text, jid = null) {
         throw new Error(`WhatsApp desconectado (estado: ${state}). Reconecta en CRM → pestaña WA.`);
     }
 
-    const targets = buildSendTargets(phone, jid);
+    const targets = buildSendTargets(phone, jid, remoteJid);
     if (!targets.length) throw new Error('Sin número o JID de destino para WhatsApp');
 
     let lastErr;
     for (const number of targets) {
         try {
-            return await evolutionFetch(`/message/sendText/${INSTANCE()}`, {
+            const result = await evolutionFetch(`/message/sendText/${INSTANCE()}`, {
                 method: 'POST',
-                body: JSON.stringify({ number, text, delay: 800 })
+                body: JSON.stringify({ number, text, delay: 500 })
             });
+            console.log('[whatsapp] enviado a', number);
+            return result;
         } catch (err) {
             lastErr = err;
             console.warn('[whatsapp] sendText falló para', number, '—', err.message);
@@ -258,13 +302,14 @@ async function sendText(phone, text, jid = null) {
 }
 
 async function findOrCreateWhatsappContact(phone, name, externalId = null) {
-    const ext = externalId || (phone ? `${phone}@s.whatsapp.net` : null);
+    const normalizedPhone = normalizePhoneDigits(phone);
+    const ext = externalId || (normalizedPhone ? `${normalizedPhone}@s.whatsapp.net` : null);
 
     let existing = null;
-    if (phone) {
+    if (normalizedPhone) {
         const { rows } = await query(
             `SELECT id FROM contacts WHERE source = 'whatsapp' AND phone = $1`,
-            [phone]
+            [normalizedPhone]
         );
         existing = rows[0];
     }
@@ -284,7 +329,7 @@ async function findOrCreateWhatsappContact(phone, name, externalId = null) {
                 external_id = COALESCE($4, external_id),
                 updated_at = NOW()
              WHERE id = $1`,
-            [existing.id, name || '', phone || null, ext]
+            [existing.id, name || '', normalizedPhone || null, ext]
         );
         return existing.id;
     }
@@ -292,7 +337,7 @@ async function findOrCreateWhatsappContact(phone, name, externalId = null) {
     const { rows } = await query(
         `INSERT INTO contacts (name, phone, source, external_id)
          VALUES ($1, $2, 'whatsapp', $3) RETURNING id`,
-        [name || (phone ? `WhatsApp ${phone}` : 'WhatsApp'), phone, ext]
+        [name || (normalizedPhone ? `WhatsApp ${normalizedPhone}` : 'WhatsApp'), normalizedPhone, ext]
     );
     return rows[0].id;
 }
@@ -321,6 +366,7 @@ async function findOrCreateWhatsappConversation(contactId) {
 
 module.exports = {
     ensureInstance,
+    ensureInstanceWebhook,
     getQrCode,
     getConnectionState,
     sendText,

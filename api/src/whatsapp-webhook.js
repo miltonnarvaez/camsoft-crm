@@ -64,10 +64,11 @@ async function handleWhatsappWebhook(payload, emitConversation) {
     for (const item of items) {
         if (String(item.remoteJid).includes('@g.us')) continue;
 
+        const replyJid = item.jid || item.remoteJid;
         const contactId = await findOrCreateWhatsappContact(
             item.phone,
             item.pushName,
-            item.jid || item.remoteJid
+            replyJid
         );
         const conversationId = await findOrCreateWhatsappConversation(contactId);
 
@@ -79,9 +80,9 @@ async function handleWhatsappWebhook(payload, emitConversation) {
 
         if (process.env.WHATSAPP_BOT_REPLY !== 'false') {
             try {
-                await sendText(item.phone, botResult.reply, item.jid || item.remoteJid);
+                await sendText(item.phone, botResult.reply, replyJid, item.remoteJid);
             } catch (err) {
-                console.error('[whatsapp] auto-reply error', item.phone || item.jid, err.message);
+                console.error('[whatsapp] auto-reply error', item.phone || replyJid, err.message);
             }
         }
         processed += 1;

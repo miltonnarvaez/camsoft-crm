@@ -91,7 +91,7 @@ async function handleAgentMessage(conversationId, body, agentName) {
             console.error('[whatsapp] send error: contacto sin teléfono ni JID');
         } else {
             try {
-                await sendText(conv.phone, body, conv.external_id);
+                await sendText(conv.phone, body, conv.external_id, conv.external_id);
             } catch (err) {
                 console.error('[whatsapp] send error', conv.phone || conv.external_id, err.message);
             }
