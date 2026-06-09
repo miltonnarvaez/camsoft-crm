@@ -48,8 +48,13 @@ echo ""
 echo "========== 5. Webhook en instancia camsoft =========="
 curl -sf -X POST -H "apikey: ${APIKEY}" -H "Content-Type: application/json" \
     "http://127.0.0.1:8080/webhook/set/camsoft" \
-    -d '{"enabled":true,"url":"http://host.docker.internal:3847/webhooks/whatsapp","webhookByEvents":false,"webhookBase64":false,"events":["MESSAGES_UPSERT"]}' \
+    -d '{"webhook":{"enabled":true,"url":"http://host.docker.internal:3847/webhooks/whatsapp","events":["MESSAGES_UPSERT"]}}' \
     && echo "webhook instancia OK" || echo "webhook instancia FALLO"
+
+echo ""
+echo "========== 5b. Limpiar contactos @lid incorrectos =========="
+chmod +x "$APP/deploy/fix-contacts-lid.sh"
+bash "$APP/deploy/fix-contacts-lid.sh" || true
 
 echo ""
 echo "========== 6. Reiniciar Evolution =========="

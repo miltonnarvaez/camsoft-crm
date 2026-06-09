@@ -116,18 +116,20 @@ function webhookConfig() {
 }
 
 async function ensureInstanceWebhook() {
+    const url = webhookConfig().url;
+    const body = {
+        webhook: {
+            enabled: true,
+            url,
+            events: ['MESSAGES_UPSERT']
+        }
+    };
     try {
         await evolutionFetch(`/webhook/set/${INSTANCE()}`, {
             method: 'POST',
-            body: JSON.stringify({
-                enabled: true,
-                url: webhookConfig().url,
-                webhookByEvents: false,
-                webhookBase64: false,
-                events: ['MESSAGES_UPSERT']
-            })
+            body: JSON.stringify(body)
         });
-        console.log('[evolution] webhook instancia:', webhookConfig().url);
+        console.log('[evolution] webhook instancia:', url);
     } catch (err) {
         console.warn('[evolution] ensureInstanceWebhook:', err.message);
     }
@@ -226,12 +228,25 @@ function extractPhoneFromJid(remoteJid) {
     return digits.length >= 8 ? digits : null;
 }
 
+function isPlausiblePhone(digits) {
+    const d = String(digits || '');
+    // Teléfonos reales: 10–13 dígitos (con código país). Los @lid suelen ser 14+ dígitos.
+    return d.length >= 10 && d.length <= 13;
+}
+
 function normalizePhoneDigits(phone) {
     if (!phone) return null;
     let d = String(phone).replace(/\D/g, '');
     if (!d) return null;
     if (d.length === 10 && d.startsWith('3')) d = `57${d}`;
-    return d;
+    return isPlausiblePhone(d) ? d : null;
+}
+
+function normalizeExternalId(externalId, phone) {
+    if (externalId && String(externalId).includes('@')) return String(externalId);
+    const digits = normalizePhoneDigits(phone || externalId);
+    if (digits) return `${digits}@s.whatsapp.net`;
+    return externalId ? String(externalId) : null;
 }
 
 /** WhatsApp nuevo usa @lid; el teléfono real viene en senderPn / cleanedSenderPn. */
@@ -303,7 +318,7 @@ async function sendText(phone, text, jid = null, remoteJid = null) {
 
 async function findOrCreateWhatsappContact(phone, name, externalId = null) {
     const normalizedPhone = normalizePhoneDigits(phone);
-    const ext = externalId || (normalizedPhone ? `${normalizedPhone}@s.whatsapp.net` : null);
+    const ext = normalizeExternalId(externalId, normalizedPhone);
 
     let existing = null;
     if (normalizedPhone) {
@@ -325,11 +340,13 @@ async function findOrCreateWhatsappContact(phone, name, externalId = null) {
         await query(
             `UPDATE contacts SET
                 name = COALESCE(NULLIF($2, ''), name),
-                phone = COALESCE($3, phone),
-                external_id = COALESCE($4, external_id),
+                phone = CASE WHEN $3 IS NOT NULL THEN $3
+                        WHEN $4 LIKE '%@lid' THEN NULL
+                        ELSE phone END,
+                external_id = COALESCE(NULLIF($4, ''), external_id),
                 updated_at = NOW()
              WHERE id = $1`,
-            [existing.id, name || '', normalizedPhone || null, ext]
+            [existing.id, name || '', normalizedPhone, ext]
         );
         return existing.id;
     }

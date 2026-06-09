@@ -60,6 +60,17 @@ async function handleWhatsappWebhook(payload, emitConversation) {
     const items = parseIncomingMessages(payload);
     if (!items.length) return { processed: 0 };
 
+    if (items[0]) {
+        const k = items[0].key || {};
+        console.log('[webhook whatsapp] destino:', {
+            phone: items[0].phone,
+            jid: items[0].jid,
+            remoteJid: items[0].remoteJid,
+            senderPn: k.senderPn,
+            cleanedSenderPn: k.cleanedSenderPn
+        });
+    }
+
     let processed = 0;
     for (const item of items) {
         if (String(item.remoteJid).includes('@g.us')) continue;

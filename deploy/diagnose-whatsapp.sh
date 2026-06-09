@@ -40,10 +40,16 @@ curl -sf http://127.0.0.1:3847/health && echo "" || echo "FALLO: API no responde
 
 echo ""
 echo "==> 5. Webhook instancia"
-curl -sf -X POST -H "apikey: ${APIKEY}" -H "Content-Type: application/json" \
+WEBHOOK_RES=$(curl -s -w "\n%{http_code}" -X POST -H "apikey: ${APIKEY}" -H "Content-Type: application/json" \
     "http://127.0.0.1:8080/webhook/set/camsoft" \
-    -d "{\"enabled\":true,\"url\":\"${WEBHOOK_URL}\",\"webhookByEvents\":false,\"webhookBase64\":false,\"events\":[\"MESSAGES_UPSERT\"]}" \
-    && echo "OK: webhook configurado → ${WEBHOOK_URL}" || echo "FALLO: no se pudo configurar webhook"
+    -d "{\"webhook\":{\"enabled\":true,\"url\":\"${WEBHOOK_URL}\",\"events\":[\"MESSAGES_UPSERT\"]}}")
+WEBHOOK_CODE=$(echo "$WEBHOOK_RES" | tail -1)
+WEBHOOK_BODY=$(echo "$WEBHOOK_RES" | head -n -1)
+if [ "$WEBHOOK_CODE" = "201" ] || [ "$WEBHOOK_CODE" = "200" ]; then
+    echo "OK: webhook configurado → ${WEBHOOK_URL}"
+else
+    echo "FALLO webhook (HTTP $WEBHOOK_CODE): $WEBHOOK_BODY"
+fi
 
 echo ""
 echo "==> 6. Últimos contactos WhatsApp en BD"
