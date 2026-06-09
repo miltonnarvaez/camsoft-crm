@@ -45,17 +45,18 @@ sleep 4
 curl -sf http://127.0.0.1:3847/health && echo ""
 
 echo ""
-echo "========== 5. Reiniciar Evolution (aplica webhook) =========="
+echo "========== 5. Webhook en instancia camsoft =========="
+curl -sf -X POST -H "apikey: ${APIKEY}" -H "Content-Type: application/json" \
+    "http://127.0.0.1:8080/webhook/set/camsoft" \
+    -d '{"enabled":true,"url":"http://host.docker.internal:3847/webhooks/whatsapp","webhookByEvents":false,"webhookBase64":false,"events":["MESSAGES_UPSERT"]}' \
+    && echo "webhook instancia OK" || echo "webhook instancia FALLO"
+
+echo ""
+echo "========== 6. Reiniciar Evolution =========="
 docker compose restart evolution-api
 sleep 10
 
 echo ""
-echo "============================================"
-if echo "$STATE" | grep -qi open; then
-    echo "WhatsApp CONECTADO."
-    echo "Escribe 'hola' desde OTRO teléfono al número de negocio (chat 1 a 1)."
-    echo "El bot debe responder en el WhatsApp del cliente en ~5 segundos."
-else
-    echo "WhatsApp NO conectado. Entra a crm.camsoft.com.co → pestaña WA → escanear QR."
-fi
-echo "============================================"
+echo "========== 7. Diagnóstico =========="
+chmod +x "$APP/deploy/diagnose-whatsapp.sh"
+bash "$APP/deploy/diagnose-whatsapp.sh" || true
