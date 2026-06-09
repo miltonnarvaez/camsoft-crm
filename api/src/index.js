@@ -108,10 +108,15 @@ app.post('/chat/:visitorToken/message', async (req, res) => {
 // --- Webhook Evolution API (WhatsApp) ---
 app.post('/webhooks/whatsapp', async (req, res) => {
     res.sendStatus(200);
+    const payload = req.body || {};
+    const event = payload.event || payload.type || 'desconocido';
+    console.log('[webhook whatsapp] recibido:', event);
     try {
-        const result = await handleWhatsappWebhook(req.body || {}, emitConversation);
+        const result = await handleWhatsappWebhook(payload, emitConversation);
         if (result.processed) {
             console.log('[webhook whatsapp] procesados:', result.processed);
+        } else {
+            console.log('[webhook whatsapp] ignorado (formato/evento):', event);
         }
     } catch (err) {
         console.error('[webhook whatsapp]', err.message);

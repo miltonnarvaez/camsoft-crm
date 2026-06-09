@@ -5,7 +5,7 @@ APP=/var/www/camsoft-crm
 cd "$APP"
 
 APIKEY=$(grep ^EVOLUTION_API_KEY= .env | cut -d= -f2-)
-WEBHOOK_URL="http://host.docker.internal:3847/webhooks/whatsapp"
+WEBHOOK_URL="https://api.camsoft.com.co/webhooks/whatsapp"
 
 echo "============================================"
 echo "DIAGNÓSTICO WHATSAPP — CamSoft CRM"
@@ -50,6 +50,16 @@ if [ "$WEBHOOK_CODE" = "201" ] || [ "$WEBHOOK_CODE" = "200" ]; then
 else
     echo "FALLO webhook (HTTP $WEBHOOK_CODE): $WEBHOOK_BODY"
 fi
+
+echo ""
+echo "==> 5b. Webhook registrado en Evolution"
+curl -sf -H "apikey: ${APIKEY}" "http://127.0.0.1:8080/webhook/find/camsoft" 2>/dev/null | head -c 500 || echo "(no se pudo leer)"
+echo ""
+
+echo ""
+echo "==> 5c. Evolution contenedor → API"
+docker compose exec -T evolution-api wget -qO- http://host.docker.internal:3847/health 2>/dev/null && echo "" || \
+    echo "host.docker.internal: FALLO (se usa URL pública)"
 
 echo ""
 echo "==> 6. Últimos contactos WhatsApp en BD"
