@@ -15,6 +15,13 @@ const {
     addMessage
 } = require('./chat');
 const { ensureBotFaqs } = require('./bot');
+const {
+    listBotFaqs,
+    getBotFaq,
+    createBotFaq,
+    updateBotFaq,
+    deleteBotFaq
+} = require('./bot-admin');
 const { handleWhatsappWebhook } = require('./whatsapp-webhook');
 const { startWhatsappPoller } = require('./whatsapp-poller');
 const {
@@ -225,6 +232,52 @@ app.post('/crm/whatsapp/send', authMiddleware, async (req, res) => {
         res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ error: e.message });
+    }
+});
+
+// --- Bot / FAQs (protegido) ---
+app.get('/crm/bot/faqs', authMiddleware, async (req, res) => {
+    try {
+        const rows = await listBotFaqs({
+            type: req.query.type || null,
+            active: req.query.all === '1' ? undefined : true
+        });
+        res.json(rows);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/crm/bot/faqs/:id', authMiddleware, async (req, res) => {
+    const row = await getBotFaq(Number(req.params.id));
+    if (!row) return res.status(404).json({ error: 'No encontrado' });
+    res.json(row);
+});
+
+app.post('/crm/bot/faqs', authMiddleware, async (req, res) => {
+    try {
+        const row = await createBotFaq(req.body || {});
+        res.status(201).json(row);
+    } catch (e) {
+        res.status(400).json({ error: e.message });
+    }
+});
+
+app.patch('/crm/bot/faqs/:id', authMiddleware, async (req, res) => {
+    try {
+        const row = await updateBotFaq(Number(req.params.id), req.body || {});
+        res.json(row);
+    } catch (e) {
+        res.status(400).json({ error: e.message });
+    }
+});
+
+app.delete('/crm/bot/faqs/:id', authMiddleware, async (req, res) => {
+    try {
+        const row = await deleteBotFaq(Number(req.params.id));
+        res.json(row);
+    } catch (e) {
+        res.status(400).json({ error: e.message });
     }
 });
 

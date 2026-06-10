@@ -152,6 +152,205 @@ function WhatsAppPanel({ token }) {
     );
 }
 
+function BotPanel({ token }) {
+    const [faqs, setFaqs] = useState([]);
+    const [filter, setFilter] = useState('all');
+    const [selected, setSelected] = useState(null);
+    const [form, setForm] = useState(null);
+    const [error, setError] = useState('');
+    const [saved, setSaved] = useState('');
+
+    const load = useCallback(async () => {
+        const q = filter === 'all' ? '?all=1' : `?type=${filter}&all=1`;
+        const data = await api(`/crm/bot/faqs${q}`, token);
+        setFaqs(data);
+    }, [token, filter]);
+
+    useEffect(() => { load().catch((e) => setError(e.message)); }, [load]);
+
+    function startNew() {
+        setSelected(null);
+        setForm({
+            question: '',
+            answer: '',
+            faq_type: 'keyword',
+            sector: '',
+            keywords: '',
+            sort_order: 50,
+            active: true
+        });
+        setSaved('');
+    }
+
+    function startEdit(f) {
+        setSelected(f);
+        setForm({
+            question: f.question,
+            answer: f.answer,
+            faq_type: f.faq_type,
+            sector: f.sector || '',
+            keywords: f.keywords || '',
+            sort_order: f.sort_order,
+            active: f.active
+        });
+        setSaved('');
+    }
+
+    async function save(e) {
+        e.preventDefault();
+        setError('');
+        setSaved('');
+        const body = {
+            ...form,
+            sector: form.sector || null
+        };
+        try {
+            if (selected) {
+                await api(`/crm/bot/faqs/${selected.id}`, token, {
+                    method: 'PATCH',
+                    body: JSON.stringify(body)
+                });
+            } else {
+                await api('/crm/bot/faqs', token, {
+                    method: 'POST',
+                    body: JSON.stringify(body)
+                });
+            }
+            setSaved('Guardado correctamente');
+            setForm(null);
+            setSelected(null);
+            load();
+        } catch (err) {
+            setError(err.message);
+        }
+    }
+
+    async function deactivate(id) {
+        if (!confirm('¿Desactivar esta respuesta del bot?')) return;
+        await api(`/crm/bot/faqs/${id}`, token, { method: 'DELETE' });
+        load();
+        setForm(null);
+    }
+
+    const typeLabel = { menu: 'Menú', keyword: 'Palabra clave', fallback: 'Fallback' };
+    const sectorLabel = { public: 'Público', health: 'Salud', education: 'Educación' };
+
+    return (
+        <div className="bot-panel">
+            <div className="bot-header">
+                <div>
+                    <h2>Contenido del bot</h2>
+                    <p className="muted">Edita saludos, sectores y palabras clave. Los cambios aplican al instante en WhatsApp y chat web.</p>
+                </div>
+                <button type="button" onClick={startNew}>+ Nueva respuesta</button>
+            </div>
+
+            <div className="bot-filters">
+                {['all', 'menu', 'keyword', 'fallback'].map((f) => (
+                    <button
+                        key={f}
+                        type="button"
+                        className={filter === f ? '' : 'secondary'}
+                        onClick={() => setFilter(f)}
+                    >
+                        {f === 'all' ? 'Todas' : typeLabel[f]}
+                    </button>
+                ))}
+            </div>
+
+            {error && <p className="bot-error">{error}</p>}
+            {saved && <p className="bot-ok">{saved}</p>}
+
+            <div className="bot-grid">
+                <div className="bot-list">
+                    {faqs.map((f) => (
+                        <div
+                            key={f.id}
+                            className={`conv-item ${selected?.id === f.id ? 'active' : ''}`}
+                            onClick={() => startEdit(f)}
+                        >
+                            <div>
+                                <strong>{f.question}</strong>
+                                <span className="badge">{typeLabel[f.faq_type] || f.faq_type}</span>
+                                {f.sector && <span className="badge wa">{sectorLabel[f.sector]}</span>}
+                            </div>
+                            <div className="muted">{f.trigger_key} · orden {f.sort_order}</div>
+                        </div>
+                    ))}
+                </div>
+
+                {form ? (
+                    <form className="bot-form" onSubmit={save}>
+                        <h3>{selected ? 'Editar respuesta' : 'Nueva respuesta'}</h3>
+                        <label>Título interno</label>
+                        <input
+                            value={form.question}
+                            onChange={(e) => setForm({ ...form, question: e.target.value })}
+                            required
+                        />
+                        <label>Tipo</label>
+                        <select
+                            value={form.faq_type}
+                            onChange={(e) => setForm({ ...form, faq_type: e.target.value })}
+                        >
+                            <option value="menu">Menú principal</option>
+                            <option value="keyword">Palabra clave</option>
+                            <option value="fallback">Fallback (no entiende)</option>
+                        </select>
+                        <label>Sector (opcional)</label>
+                        <select
+                            value={form.sector}
+                            onChange={(e) => setForm({ ...form, sector: e.target.value })}
+                        >
+                            <option value="">Global (todos)</option>
+                            <option value="public">Sector público</option>
+                            <option value="health">Sector salud</option>
+                            <option value="education">Sector educación</option>
+                        </select>
+                        <label>Palabras clave (separadas por coma)</label>
+                        <input
+                            value={form.keywords}
+                            onChange={(e) => setForm({ ...form, keywords: e.target.value })}
+                            placeholder="lms, moodle, plataforma, aula virtual"
+                        />
+                        <label>Texto que responde el bot</label>
+                        <textarea
+                            rows={12}
+                            value={form.answer}
+                            onChange={(e) => setForm({ ...form, answer: e.target.value })}
+                            required
+                        />
+                        <label>Orden</label>
+                        <input
+                            type="number"
+                            value={form.sort_order}
+                            onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
+                        />
+                        <div className="bot-actions">
+                            <button type="submit">Guardar</button>
+                            <button type="button" className="secondary" onClick={() => setForm(null)}>Cancelar</button>
+                            {selected && (
+                                <button type="button" className="secondary" onClick={() => deactivate(selected.id)}>
+                                    Desactivar
+                                </button>
+                            )}
+                        </div>
+                    </form>
+                ) : (
+                    <div className="bot-help muted">
+                        <h3>Cómo funciona</h3>
+                        <p><strong>Menú:</strong> respuestas al saludo y opciones principales (Sector público, salud…).</p>
+                        <p><strong>Palabra clave:</strong> si el cliente escribe LMS, cotización, PQRSD, etc.</p>
+                        <p><strong>Sector:</strong> las palabras clave con sector solo aplican si el cliente ya eligió ese sector.</p>
+                        <p><strong>Fallback:</strong> mensaje cuando el bot no entiende nada.</p>
+                        <p>Selecciona una respuesta de la lista o crea una nueva.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function CrmApp({ token, user, logout }) {
     const [tab, setTab] = useState('inbox');
     const [conversations, setConversations] = useState([]);
@@ -225,6 +424,7 @@ function CrmApp({ token, user, logout }) {
                 <div className="tabs">
                     <button type="button" className={tab === 'inbox' ? '' : 'secondary'} onClick={() => setTab('inbox')}>Inbox</button>
                     <button type="button" className={tab === 'leads' ? '' : 'secondary'} onClick={() => setTab('leads')}>Leads</button>
+                    <button type="button" className={tab === 'bot' ? '' : 'secondary'} onClick={() => setTab('bot')}>Bot</button>
                     <button type="button" className={tab === 'wa' ? '' : 'secondary'} onClick={() => setTab('wa')}>WA</button>
                 </div>
                 {tab === 'inbox' && conversations.map((c) => (
@@ -254,6 +454,8 @@ function CrmApp({ token, user, logout }) {
             <section className="main">
                 {tab === 'wa' ? (
                     <WhatsAppPanel token={token} />
+                ) : tab === 'bot' ? (
+                    <BotPanel token={token} />
                 ) : tab === 'leads' ? (
                     <div style={{ padding: 16 }}>
                         <h2>Leads</h2>

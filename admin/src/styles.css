@@ -25,6 +25,20 @@ button.secondary { background: #334155; }
 .compose { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #1e293b; }
 .compose input { margin: 0; flex: 1; }
 .qr { max-width: 240px; border-radius: 8px; margin-top: 8px; }
-.tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-.tabs button { flex: 1; }
+.tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.tabs button { flex: 1; min-width: 60px; font-size: 13px; padding: 8px 6px; }
 .muted { color: #94a3b8; font-size: 13px; }
+.bot-panel { padding: 16px; overflow-y: auto; height: 100%; }
+.bot-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.bot-header h2 { margin: 0 0 4px; }
+.bot-filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.bot-grid { display: grid; grid-template-columns: 280px 1fr; gap: 16px; min-height: 400px; }
+@media (max-width: 900px) { .bot-grid { grid-template-columns: 1fr; } }
+.bot-list { max-height: 70vh; overflow-y: auto; }
+.bot-form label { display: block; font-size: 12px; color: #94a3b8; margin: 8px 0 4px; }
+.bot-form textarea { resize: vertical; min-height: 200px; font-family: inherit; line-height: 1.5; }
+.bot-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.bot-help { padding: 16px; background: #0f172a; border-radius: 8px; border: 1px solid #1e293b; }
+.bot-help h3 { margin-top: 0; }
+.bot-error { color: #f87171; }
+.bot-ok { color: #4ade80; }
