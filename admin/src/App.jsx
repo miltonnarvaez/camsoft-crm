@@ -341,6 +341,7 @@ function BotPanel({ token }) {
                         <h3>Cómo funciona</h3>
                         <p><strong>Menú:</strong> respuestas al saludo y opciones principales (Sector público, salud…).</p>
                         <p><strong>Palabra clave:</strong> si el cliente escribe LMS, cotización, PQRSD, etc.</p>
+                        <p><strong>Flujo inicial:</strong> el saludo (<code>greeting</code>) pregunta Soporte (1) o Ventas (2). Las claves <code>soporte</code> y <code>ventas</code> controlan esa rama.</p>
                         <p><strong>Sector:</strong> las palabras clave con sector solo aplican si el cliente ya eligió ese sector.</p>
                         <p><strong>Fallback:</strong> mensaje cuando el bot no entiende nada.</p>
                         <p>Selecciona una respuesta de la lista o crea una nueva.</p>

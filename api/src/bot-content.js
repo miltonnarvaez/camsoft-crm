@@ -9,9 +9,43 @@ const BOT_SEED = [
         sort_order: 1,
         answer: `Hola, soy el asistente virtual de *CamSoft* (Milton Narvaez).
 
-Desarrollamos software a medida para sector público, salud y educación.
+¿Para qué necesitas el servicio hoy?
 
-¿En qué te puedo orientar hoy?`
+*1.* Soporte — ayuda con un sistema o servicio que ya tienes
+*2.* Ventas — información sobre un proyecto nuevo o cotización
+
+Responde *1*, *2* o escribe *soporte* / *ventas*.`
+    },
+    {
+        trigger_key: 'soporte',
+        question: 'Opción soporte',
+        faq_type: 'menu',
+        sector: null,
+        keywords: '1,soporte,support,tecnico,asistencia,falla,error,problema,no funciona,ayuda tecnica',
+        sort_order: 2,
+        answer: `*Soporte CamSoft*
+
+Te ayudamos con:
+• Fallas o errores en sistemas CamSoft
+• Accesos, usuarios y permisos
+• Dudas de uso de plataformas (LMS, portales, etc.)
+• Ajustes menores y acompañamiento
+
+Para atenderte mejor, cuéntanos:
+• ¿Qué sistema o módulo presenta el problema?
+• ¿Qué error ves o qué dejó de funcionar?
+
+Escribe *hablar con una persona* y un técnico te contactará.
+Horario de respuesta: 24–48 h hábiles.`
+    },
+    {
+        trigger_key: 'ventas',
+        question: 'Opción ventas',
+        faq_type: 'menu',
+        sector: null,
+        keywords: '2,ventas,comercial,cotizar,cotizacion,proyecto,nuevo,informacion,comprar,contratar',
+        sort_order: 3,
+        answer: `__SALES_MENU__`
     },
     {
         trigger_key: 'public',
@@ -19,7 +53,7 @@ Desarrollamos software a medida para sector público, salud y educación.
         faq_type: 'menu',
         sector: 'public',
         keywords: 'publico,gobierno,estatal,municipio,alcaldia,gobernacion',
-        sort_order: 2,
+        sort_order: 4,
         answer: `*Sector público — CamSoft*
 
 Desarrollamos soluciones como:
@@ -39,7 +73,7 @@ También: *hablar con una persona* para que Milton te asesore.`
         faq_type: 'menu',
         sector: 'health',
         keywords: 'salud,hospital,clinica,ips,eps,medic',
-        sort_order: 3,
+        sort_order: 5,
         answer: `*Sector salud — CamSoft*
 
 Trabajamos en:
@@ -59,7 +93,7 @@ O *hablar con una persona* para una asesoría directa.`
         faq_type: 'menu',
         sector: 'education',
         keywords: 'educacion,colegio,universidad,institucion,academ',
-        sort_order: 4,
+        sort_order: 6,
         answer: `*Sector educación — CamSoft*
 
 Desarrollamos:
@@ -79,7 +113,7 @@ También puedes pedir *hablar con una persona*.`
         faq_type: 'menu',
         sector: null,
         keywords: 'humano,persona,asesor,milton,agente,llamar',
-        sort_order: 5,
+        sort_order: 7,
         answer: `Perfecto. *Milton Narvaez* o un asesor de CamSoft revisará tu mensaje pronto.
 
 Mientras tanto, si quieres adelantar:
@@ -95,7 +129,7 @@ Respuesta habitual: 24–48 h hábiles.`
         faq_type: 'menu',
         sector: null,
         keywords: 'contacto,correo,email,telefono,whatsapp,direccion',
-        sort_order: 6,
+        sort_order: 8,
         answer: `*Contacto CamSoft*
 📧 nf_alejo@yahoo.com
 📱 +57 317 374 2174
@@ -111,16 +145,29 @@ Escribe *menu* para ver opciones del asistente.`
         sector: null,
         keywords: null,
         sort_order: 99,
-        answer: `Gracias por tu mensaje. Para orientarte mejor:
+        answer: `Gracias por tu mensaje.
 
-Escribe *menu* para ver opciones
-• Sector público
-• Sector salud
-• Sector educación
-• Hablar con una persona
-• Datos de contacto
+Escribe *menu* para volver al inicio:
+*1.* Soporte
+*2.* Ventas
 
-Si ya comentaste tu necesidad, escribe *hablar con una persona* y Milton te responderá.`
+O escribe *hablar con una persona* y Milton te responderá.`
+    },
+    {
+        trigger_key: 'kw_support_access',
+        question: 'Acceso / contraseña',
+        faq_type: 'keyword',
+        sector: null,
+        keywords: 'acceso,contraseña,password,clave,login,ingresar,no puedo entrar,usuario bloqueado',
+        sort_order: 15,
+        answer: `*Problemas de acceso*
+
+Indícanos:
+• Usuario o correo registrado
+• Sistema (LMS, portal, etc.)
+• Captura del error si es posible
+
+Un técnico revisará y te contactará. Escribe *hablar con una persona* para priorizar.`
     },
     // --- Palabras clave globales ---
     {
@@ -317,6 +364,11 @@ Escribe *hablar con una persona* para conocer opciones.`
     }
 ];
 
+const INTRO_ITEMS = [
+    { key: 'soporte', label: 'Soporte', keywords: '1,soporte,support,tecnico,asistencia,falla,error,problema' },
+    { key: 'ventas', label: 'Ventas', keywords: '2,ventas,comercial,cotizar,cotizacion,proyecto,nuevo' }
+];
+
 const MENU_ITEMS = [
     { key: 'public', label: 'Sector público' },
     { key: 'health', label: 'Sector salud' },
@@ -325,4 +377,4 @@ const MENU_ITEMS = [
     { key: 'contact', label: 'Datos de contacto' }
 ];
 
-module.exports = { BOT_SEED, MENU_ITEMS };
+module.exports = { BOT_SEED, INTRO_ITEMS, MENU_ITEMS };
