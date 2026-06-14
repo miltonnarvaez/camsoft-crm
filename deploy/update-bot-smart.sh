@@ -3,23 +3,29 @@
 set -euo pipefail
 cd /var/www/camsoft-crm
 
-git pull origin main
+git pull origin main 2>/dev/null || true
 
-node - <<'NODE'
-require('dotenv').config();
-const { seedBotContent } = require('./api/src/bot');
+echo "==> Actualizar FAQs del bot en BD"
+cd /var/www/camsoft-crm/api
+node -e "
+require('dotenv').config({ path: '../.env' });
+const { seedBotContent } = require('./src/bot');
 seedBotContent(true).then(() => {
   console.log('[deploy] bot FAQs actualizados');
   process.exit(0);
-}).catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
-NODE
+}).catch((e) => { console.error(e); process.exit(1); });
+"
 
-grep -q '^WHATSAPP_INTERACTIVE=' .env && \
-  sed -i 's/^WHATSAPP_INTERACTIVE=.*/WHATSAPP_INTERACTIVE=true/' .env || \
-  echo 'WHATSAPP_INTERACTIVE=true' >> .env
+grep -q '^WHATSAPP_INTERACTIVE=' /var/www/camsoft-crm/.env && \
+  sed -i 's/^WHATSAPP_INTERACTIVE=.*/WHATSAPP_INTERACTIVE=true/' /var/www/camsoft-crm/.env || \
+  echo 'WHATSAPP_INTERACTIVE=true' >> /var/www/camsoft-crm/.env
 
 systemctl restart camsoft-crm
-echo "Listo. Prueba: hola → menú con opciones · 2 → ventas · pagina web de concejo"
+sleep 2
+echo ""
+echo "============================================"
+echo "LISTO. Prueba WhatsApp:"
+echo "  hola → menú con opciones"
+echo "  2 → ventas"
+echo "  pagina web de concejo → sector público"
+echo "============================================"
