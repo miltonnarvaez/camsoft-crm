@@ -1,6 +1,6 @@
 const { query } = require('./db');
-const { BOT_SEED, INTRO_ITEMS, MENU_ITEMS } = require('./bot-content');
-const { INTRO_BUTTONS, INTRO_LIST, SAL_LIST, resolveRowId } = require('./bot-interactive');
+const { BOT_SEED, INTRO_ITEMS, MENU_ITEMS, BOT_CONTENT_VERSION } = require('./bot-content');
+const { resolveRowId } = require('./bot-interactive');
 const { BOT_USAGE_HELP } = require('./bot-help');
 
 function normalize(text) {
@@ -90,12 +90,13 @@ async function seedBotContent(forceUpdate = false) {
             );
         }
     }
-    console.log('[bot] contenido', forceUpdate ? 'actualizado' : 'verificado');
+    console.log('[bot] contenido', forceUpdate ? 'actualizado' : 'verificado', BOT_CONTENT_VERSION);
 }
 
 async function ensureBotFaqs() {
     try {
-        await seedBotContent(false);
+        const force = process.env.BOT_FORCE_SEED !== 'false';
+        await seedBotContent(force);
     } catch (err) {
         console.warn('[bot] ensureBotFaqs:', err.message);
     }
@@ -107,7 +108,15 @@ async function getFaqByKey(key) {
         [key]
     );
     const seed = BOT_SEED.find((s) => s.trigger_key === key);
-    return rows[0]?.answer?.trim() || seed?.answer || null;
+    const fromDb = rows[0]?.answer?.trim();
+    if (fromDb && fromDb !== '__SALES_MENU__') return fromDb;
+    if (seed?.answer === '__SALES_MENU__') return null;
+    return seed?.answer?.trim() || null;
+}
+
+async function safeAnswer(key, fallback = 'Escribe menu para volver al inicio.') {
+    const answer = await getFaqByKey(key);
+    return answer?.trim() || fallback;
 }
 
 async function loadActiveFaqs(type = null) {
@@ -156,12 +165,27 @@ function findIntroMatch(text) {
     return null;
 }
 
+const SECTOR_MENU_ALIASES = {
+    public: ['sector publico', 'publico', 'gobierno', 'concejo', 'municipio', 'alcaldia', 'camara'],
+    health: ['sector salud', 'salud', 'hospital', 'clinica', 'ips', 'eps', 'medicina'],
+    education: ['sector educacion', 'sector educación', 'educacion', 'colegio', 'universidad', 'institucion'],
+    human: ['hablar con una persona', 'humano', 'persona', 'asesor', 'milton', 'agente'],
+    contact: ['contacto', 'datos de contacto', 'telefono', 'correo', 'email', 'whatsapp']
+};
+
 function findMenuMatch(text) {
     const t = normalize(text);
-    return MENU_ITEMS.find((m) => {
-        const label = normalize(m.label);
-        return t.includes(m.key) || t.includes(label) || label.includes(t);
-    });
+    for (const item of MENU_ITEMS) {
+        const aliases = SECTOR_MENU_ALIASES[item.key] || [];
+        if (aliases.some((a) => t === a || t.includes(a))) {
+            return item;
+        }
+        const label = normalize(item.label);
+        if (t.includes(item.key) || t.includes(label) || label.includes(t)) {
+            return item;
+        }
+    }
+    return null;
 }
 
 async function findKeywordMatch(text, sector, intent) {
@@ -227,19 +251,11 @@ async function findAnySectorOrKeyword(text, intent) {
 }
 
 function introResponse(reply, extra = {}) {
-    const out = { reply, hotLead: false, sector: null, ...extra };
-    if (process.env.WHATSAPP_INTERACTIVE === 'true') {
-        out.interactive = INTRO_BUTTONS;
-    }
-    return out;
+    return { reply, hotLead: false, sector: null, ...extra };
 }
 
 function salesMenuResponse(reply, extra = {}) {
-    const out = { reply, ...extra };
-    if (process.env.WHATSAPP_INTERACTIVE === 'true') {
-        out.interactive = SAL_LIST;
-    }
-    return out;
+    return { reply, ...extra };
 }
 
 async function buildSalesMenuReply() {
@@ -259,7 +275,9 @@ También puedes escribir: concejo, LMS, cotización, etc.`;
 async function resolveMenuAnswer(key) {
     if (key === 'ventas') return buildSalesMenuReply();
     let answer = await getFaqByKey(key);
-    if (answer === '__SALES_MENU__') answer = await buildSalesMenuReply();
+    if (answer === '__SALES_MENU__' || !answer?.trim()) {
+        answer = key === 'ventas' ? await buildSalesMenuReply() : await safeAnswer(key);
+    }
     return answer;
 }
 
@@ -317,7 +335,7 @@ async function processBotMessage(conversationId, text) {
             return salesMenuResponse(reply, { sector: ctx.sector });
         }
         if (intent === 'soporte') {
-            const answer = await getFaqByKey('soporte');
+            const answer = await safeAnswer('soporte');
             return { reply: answer, hotLead: false, sector: null };
         }
         const reply = await buildIntroReply();
@@ -347,7 +365,7 @@ async function processBotMessage(conversationId, text) {
         }
         const humanMatch = findMenuMatch(text);
         if (humanMatch?.key === 'human' || humanMatch?.key === 'contact') {
-            const answer = await getFaqByKey(humanMatch.key);
+            const answer = await safeAnswer(humanMatch.key);
             await applyLeadUpdates(conversationId, humanMatch.key, 'soporte');
             return { reply: answer, hotLead: humanMatch.key === 'human', sector: null };
         }
@@ -357,14 +375,14 @@ async function processBotMessage(conversationId, text) {
         }
         if (textMatchesKeywords(text, 'hablar con una persona,humano,persona,asesor')) {
             await applyLeadUpdates(conversationId, 'human', 'soporte');
-            return { reply: await getFaqByKey('human'), hotLead: true, sector: null };
+            return { reply: await safeAnswer('human'), hotLead: true, sector: null };
         }
         const any = await findAnySectorOrKeyword(text, 'soporte');
         if (any) {
             const answer = any.kind === 'menu' ? any.row.answer : any.row.answer;
             return { reply: answer, hotLead: false, sector: any.row.sector || null };
         }
-        const fallback = await getFaqByKey('fallback');
+        const fallback = await safeAnswer('fallback');
         return { reply: fallback, hotLead: false, sector: null };
     }
 
@@ -393,7 +411,7 @@ async function processBotMessage(conversationId, text) {
     }
     if (t === '1' || t.includes('soporte')) {
         await applyLeadUpdates(conversationId, 'soporte', 'soporte');
-        return { reply: await getFaqByKey('soporte'), hotLead: false, sector: null };
+        return { reply: await safeAnswer('soporte'), hotLead: false, sector: null };
     }
 
     const menuDirect = findMenuMatch(text);
@@ -457,7 +475,7 @@ async function processBotMessage(conversationId, text) {
         };
     }
 
-    const fallback = await getFaqByKey('fallback');
+    const fallback = await safeAnswer('fallback');
     return { reply: fallback, hotLead: false, sector: null };
 }
 

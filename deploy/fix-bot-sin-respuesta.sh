@@ -4,6 +4,10 @@ set -euo pipefail
 cd /var/www/camsoft-crm
 git pull origin main
 
+grep -q '^BOT_FORCE_SEED=' .env && \
+  sed -i 's/^BOT_FORCE_SEED=.*/BOT_FORCE_SEED=true/' .env || \
+  echo 'BOT_FORCE_SEED=true' >> .env
+
 grep -q '^WHATSAPP_INTERACTIVE=' .env && \
   sed -i 's/^WHATSAPP_INTERACTIVE=.*/WHATSAPP_INTERACTIVE=false/' .env || \
   echo 'WHATSAPP_INTERACTIVE=false' >> .env

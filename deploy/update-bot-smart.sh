@@ -16,6 +16,10 @@ seedBotContent(true).then(() => {
 }).catch((e) => { console.error(e); process.exit(1); });
 "
 
+grep -q '^BOT_FORCE_SEED=' /var/www/camsoft-crm/.env && \
+  sed -i 's/^BOT_FORCE_SEED=.*/BOT_FORCE_SEED=true/' /var/www/camsoft-crm/.env || \
+  echo 'BOT_FORCE_SEED=true' >> /var/www/camsoft-crm/.env
+
 grep -q '^WHATSAPP_INTERACTIVE=' /var/www/camsoft-crm/.env && \
   sed -i 's/^WHATSAPP_INTERACTIVE=.*/WHATSAPP_INTERACTIVE=false/' /var/www/camsoft-crm/.env || \
   echo 'WHATSAPP_INTERACTIVE=false' >> /var/www/camsoft-crm/.env

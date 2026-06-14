@@ -74,7 +74,7 @@ O escribe: hablar con una persona`
         question: 'Sector salud',
         faq_type: 'menu',
         sector: 'health',
-        keywords: 'salud,hospital,clinica,ips,eps,medic',
+        keywords: 'salud,sector salud,hospital,clinica,ips,eps,medic,medicina',
         sort_order: 5,
         answer: `*Sector salud — CamSoft*
 
@@ -94,7 +94,7 @@ O escribe: hablar con una persona`
         question: 'Sector educación',
         faq_type: 'menu',
         sector: 'education',
-        keywords: 'educacion,colegio,universidad,institucion,academ',
+        keywords: 'educacion,sector educacion,sector educación,colegio,universidad,institucion,academ',
         sort_order: 6,
         answer: `*Sector educación — CamSoft*
 
@@ -366,8 +366,194 @@ Videoconsulta integrada con agenda e historia clínica, consentimiento informado
 Ideal para ampliar cobertura sin ampliar infraestructura física.
 
 Escribe *hablar con una persona* para conocer opciones.`
+    },
+    {
+        trigger_key: 'kw_about',
+        question: 'Qué es CamSoft',
+        faq_type: 'keyword',
+        sector: null,
+        keywords: 'camsoft,quienes son,que hacen,que hace,empresa,software a medida,desarrollo,desarrolladores',
+        sort_order: 5,
+        answer: `*CamSoft* — Milton Narvaez
+
+Desarrollamos software a medida para entidadeses públicas, salud y educación:
+• Portales web y trámites en línea
+• LMS y plataformas académicas
+• Historia clínica, citas y telemedicina
+• Integraciones y migraciones
+
+Escribe 2 para ventas o: hablar con una persona`
+    },
+    {
+        trigger_key: 'kw_web',
+        question: 'Página web / sitio web',
+        faq_type: 'keyword',
+        sector: null,
+        keywords: 'pagina web,sitio web,landing,web institucional,portal web,diseño web,website,concejo,alcaldia,municipio',
+        sort_order: 6,
+        answer: `*Páginas y portales web — CamSoft*
+
+• Sitios institucionales (concejos, IPS, colegios)
+• Portales de transparencia y trámites
+• Diseño responsive y accesible
+• CMS para que tu equipo actualice contenido
+
+Plazo orientativo: 4–10 semanas según alcance.
+Escribe: cotización, concejo, portal o hablar con una persona`
+    },
+    {
+        trigger_key: 'kw_app',
+        question: 'App móvil',
+        faq_type: 'keyword',
+        sector: null,
+        keywords: 'app,aplicacion,movil,android,ios,celular,smartphone',
+        sort_order: 7,
+        answer: `*Apps móviles — CamSoft*
+
+Desarrollamos apps Android/iOS conectadas a tu backend:
+• Ciudadanosos, trámites, consultas
+• Notificaciones push
+• Sincronización con sistemas existentes
+
+Cuéntanos el caso de uso. Escribe: MVP, cotización o hablar con una persona`
+    },
+    {
+        trigger_key: 'kw_integrations',
+        question: 'Integraciones',
+        faq_type: 'keyword',
+        sector: null,
+        keywords: 'integracion,integraciones,api,conectar,sincronizar,erp,sap,siigo,alegra,pse,pasarela,pago,pagos',
+        sort_order: 8,
+        answer: `*Integraciones — CamSoft*
+
+Conectamos tu software con:
+• Pasarelas de pago (PSE, tarjetas)
+• ERP / contabilidad
+• Active Directory, Google, Microsoft
+• APIs de terceros y bases de datos legadas
+
+Indica qué sistemas usas hoy. Escribe: hablar con una persona`
+    },
+    {
+        trigger_key: 'kw_support_bug',
+        question: 'Error / bug en sistema',
+        faq_type: 'keyword',
+        sector: null,
+        keywords: 'bug,error,falla,fallo,no carga,lento,crash,pantalla blanca,500,503',
+        sort_order: 16,
+        answer: `*Reporte de falla*
+
+Para ayudarte rápido indica:
+• Sistema afectado (LMS, portal, etc.)
+• Qué estabas haciendo
+• Captura del error si puedes
+
+Escribe 1 para soporte o: hablar con una persona`
+    },
+    {
+        trigger_key: 'kw_support_password',
+        question: 'Contraseña / acceso',
+        faq_type: 'keyword',
+        sector: null,
+        keywords: 'olvide contraseña,resetear,recuperar clave,bloqueado,sin acceso',
+        sort_order: 17,
+        answer: `*Recuperación de acceso*
+
+• Usuario o correo registrado
+• Sistema (LMS, portal, etc.)
+
+Un técnico validará identidad y te ayudará. Escribe: hablar con una persona`
+    },
+    {
+        trigger_key: 'kw_pub_concejo',
+        question: 'Concejo municipal',
+        faq_type: 'keyword',
+        sector: 'public',
+        keywords: 'concejo,camara,concejal,alcaldia,municipio,gobernacion departamental',
+        sort_order: 32,
+        answer: `*Soluciones para concejos y entidadeses territoriales*
+
+• Portal institucional y transparencia
+• Página web del concejo
+• PQRS / PQRS en línea
+• Trámites y ventanilla digital
+
+Escribe: pagina web, PQRS, transparencia o cotización`
+    },
+    {
+        trigger_key: 'kw_pub_tramites',
+        question: 'Trámites en línea',
+        faq_type: 'keyword',
+        sector: 'public',
+        keywords: 'tramite,tramites,ventanilla,ventanilla unica,radicacion,certificado,licencia',
+        sort_order: 33,
+        answer: `*Trámites y ventanilla única*
+
+Radicación en línea, seguimiento, pagos y notificaciones al ciudadano.
+
+Escribe: cotización o hablar con una persona`
+    },
+    {
+        trigger_key: 'kw_edu_colegio',
+        question: 'Software para colegio',
+        faq_type: 'keyword',
+        sector: 'education',
+        keywords: 'colegio,escuela,instituto,notas,boletines,certificados,asistencia',
+        sort_order: 22,
+        answer: `*Software para colegios*
+
+• Matrículas y pagos
+• Notas, boletines y certificados
+• Comunicación con acudientes
+• LMS integrado (opcional)
+
+Escribe: LMS, matrículas, cotización`
+    },
+    {
+        trigger_key: 'kw_health_ips',
+        question: 'Software IPS / clínica',
+        faq_type: 'keyword',
+        sector: 'health',
+        keywords: 'ips,clinica,consultorio,ambulatorio,hospital,odontologia,laboratorio',
+        sort_order: 43,
+        answer: `*Software para IPS y clínicas*
+
+• Agenda de citas
+• Historia clínica
+• Facturación básica
+• Reportes regulatorios
+
+Escribe: citas, historia clínica, telemedicina o cotización`
+    },
+    {
+        trigger_key: 'kw_hosting',
+        question: 'Hosting / nube',
+        faq_type: 'keyword',
+        sector: null,
+        keywords: 'hosting,servidor,nube,cloud,aws,azure,digital ocean,despliegue',
+        sort_order: 14,
+        answer: `*Hosting y despliegue*
+
+Podemos alojar tu solución o desplegarla en tu infraestructura.
+
+Escribe: hablar con una persona para definir arquitectura.`
+    },
+    {
+        trigger_key: 'kw_training',
+        question: 'Capacitación',
+        faq_type: 'keyword',
+        sector: null,
+        keywords: 'capacitacion,training,manual,manuales,tutorial,video,formacion',
+        sort_order: 15,
+        answer: `*Capacitación y documentación*
+
+Incluimos manuales, videos cortos y sesiones de capacitación según el proyecto.
+
+Escribe: hablar con una persona`
     }
 ];
+
+const BOT_CONTENT_VERSION = 'v4-2025';
 
 const INTRO_ITEMS = [
     { key: 'soporte', label: 'Soporte', keywords: '1,soporte,support,tecnico,asistencia,falla,error,problema' },
@@ -382,4 +568,4 @@ const MENU_ITEMS = [
     { key: 'contact', label: 'Datos de contacto' }
 ];
 
-module.exports = { BOT_SEED, INTRO_ITEMS, MENU_ITEMS };
+module.exports = { BOT_SEED, INTRO_ITEMS, MENU_ITEMS, BOT_CONTENT_VERSION };
