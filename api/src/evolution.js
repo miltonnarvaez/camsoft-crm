@@ -371,6 +371,59 @@ async function sendText(phone, text, jid = null, remoteJid = null, remoteJidAlt 
     throw lastErr || new Error('No se pudo enviar el mensaje por WhatsApp');
 }
 
+async function sendWithTargets(endpoint, phone, jid, remoteJid, remoteJidAlt, buildBody) {
+    const state = await getConnectionState();
+    if (!isConnectedState(state)) {
+        throw new Error(`WhatsApp desconectado (estado: ${state}). Reconecta en CRM → pestaña WA.`);
+    }
+    const targets = buildSendTargets(phone, jid, remoteJid, remoteJidAlt);
+    if (!targets.length) throw new Error('Sin número o JID de destino para WhatsApp');
+
+    let lastErr;
+    for (const number of targets) {
+        try {
+            const result = await evolutionFetch(`${endpoint}/${INSTANCE()}`, {
+                method: 'POST',
+                body: JSON.stringify(buildBody(number))
+            });
+            console.log('[whatsapp] enviado (interactivo) a', number);
+            return result;
+        } catch (err) {
+            lastErr = err;
+            console.warn('[whatsapp] interactivo falló para', number, '—', err.message);
+        }
+    }
+    throw lastErr || new Error('No se pudo enviar el mensaje interactivo');
+}
+
+async function sendList(phone, list, jid = null, remoteJid = null, remoteJidAlt = null, quotedKey = null) {
+    return sendWithTargets('/message/sendList', phone, jid, remoteJid, remoteJidAlt, (number) => ({
+        number,
+        title: list.title,
+        description: list.description,
+        buttonText: list.buttonText,
+        footerText: list.footerText || '',
+        values: list.values,
+        linkPreview: false,
+        ...(quotedKey?.id ? { quoted: buildSendBody(number, '', quotedKey).quoted } : {})
+    }));
+}
+
+async function sendBotReply(phone, botResult, jid = null, remoteJid = null, remoteJidAlt = null, quotedKey = null) {
+    const interactive = botResult?.interactive;
+    const useInteractive = process.env.WHATSAPP_INTERACTIVE !== 'false';
+
+    if (useInteractive && interactive?.type === 'list' && interactive.values?.length) {
+        try {
+            return await sendList(phone, interactive, jid, remoteJid, remoteJidAlt, quotedKey);
+        } catch (err) {
+            console.warn('[whatsapp] sendList fallback a texto:', err.message);
+        }
+    }
+
+    return sendText(phone, botResult.reply, jid, remoteJid, remoteJidAlt, quotedKey);
+}
+
 async function findOrCreateWhatsappContact(phone, name, externalId = null) {
     const normalizedPhone = normalizePhoneDigits(phone);
     const ext = normalizeExternalId(externalId, normalizedPhone);
@@ -444,6 +497,8 @@ module.exports = {
     getQrCode,
     getConnectionState,
     sendText,
+    sendList,
+    sendBotReply,
     extractPhoneFromJid,
     normalizePhoneDigits,
     resolveWhatsappDestination,

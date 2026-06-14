@@ -4,7 +4,7 @@ const {
     resolveWhatsappDestination,
     findOrCreateWhatsappContact,
     findOrCreateWhatsappConversation,
-    sendText
+    sendBotReply
 } = require('./evolution');
 const {
     acquireInboundLock,
@@ -22,6 +22,11 @@ function isIncomingMessageEvent(event) {
 function extractText(data) {
     if (!data) return '';
     const msg = data.message || {};
+    const listId = msg.listResponseMessage?.singleSelectReply?.selectedRowId;
+    const buttonId = msg.buttonsResponseMessage?.selectedButtonId
+        || msg.templateButtonReplyMessage?.selectedId;
+    if (listId) return String(listId);
+    if (buttonId) return String(buttonId);
     return (
         msg.conversation ||
         msg.extendedTextMessage?.text ||
@@ -120,9 +125,9 @@ async function handleWhatsappWebhook(payload, emitConversation) {
 
             if (process.env.WHATSAPP_BOT_REPLY !== 'false') {
                 try {
-                    await sendText(
+                    await sendBotReply(
                         item.phone,
-                        botResult.reply,
+                        botResult,
                         replyJid,
                         item.remoteJid,
                         item.remoteJidAlt || item.key?.remoteJidAlt,

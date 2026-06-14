@@ -1,5 +1,6 @@
 const { query } = require('./db');
 const { BOT_SEED, INTRO_ITEMS, MENU_ITEMS } = require('./bot-content');
+const { INTRO_LIST, SAL_LIST, resolveRowId } = require('./bot-interactive');
 
 function normalize(text) {
     return (text || '')
@@ -135,6 +136,14 @@ async function setConversationIntent(conversationId, intent) {
     );
 }
 
+function normalizeIntroChoice(text) {
+    const t = normalize(text);
+    if (t === '1' || t === '2') return t;
+    if (/^(opcion|opción|option|numero|número)\s*[12]$/.test(t)) return t.slice(-1);
+    if (/^[12][\.\):]\s*$/.test(t)) return t[0];
+    return text;
+}
+
 function findIntroMatch(text) {
     const t = normalize(text);
     for (const item of INTRO_ITEMS) {
@@ -188,14 +197,53 @@ function buildIntroReply() {
     return getFaqByKey('greeting').then((greeting) => greeting || '¿Soporte o ventas? Responde 1 o 2.');
 }
 
+async function findIntroMatchFromDb(text) {
+    const menus = await loadActiveFaqs('menu');
+    for (const row of menus) {
+        if (!['soporte', 'ventas'].includes(row.trigger_key)) continue;
+        if (row.keywords && textMatchesKeywords(text, row.keywords)) {
+            return { key: row.trigger_key, label: row.question, keywords: row.keywords };
+        }
+    }
+    return null;
+}
+
+async function findAnySectorOrKeyword(text, intent) {
+    const menus = await loadActiveFaqs('menu');
+    const skip = new Set(['greeting', 'fallback']);
+    for (const row of menus) {
+        if (skip.has(row.trigger_key)) continue;
+        if (row.keywords && textMatchesKeywords(text, row.keywords)) {
+            return { kind: 'menu', row };
+        }
+    }
+    const keywords = await loadActiveFaqs('keyword');
+    const pool = intent === 'soporte' ? keywords.filter((k) => !k.sector) : keywords;
+    for (const row of pool) {
+        if (textMatchesKeywords(text, row.keywords)) return { kind: 'keyword', row };
+    }
+    return null;
+}
+
+function introResponse(reply, extra = {}) {
+    return { reply, interactive: INTRO_LIST, hotLead: false, sector: null, ...extra };
+}
+
+function salesMenuResponse(reply, extra = {}) {
+    return { reply, interactive: SAL_LIST, ...extra };
+}
+
 async function buildSalesMenuReply() {
     const intro = `*Ventas — CamSoft*
 
 Desarrollamos software a medida. ¿En qué sector necesitas apoyo?`;
     const options = MENU_ITEMS.filter((m) => m.key !== 'human' && m.key !== 'contact')
-        .map((m) => `• ${m.label}`)
+        .map((m) => {
+            const icons = { public: '🏛', health: '🏥', education: '🎓' };
+            return `• ${icons[m.key] || '•'} ${m.label}`;
+        })
         .join('\n');
-    return `${intro}\n\n${options}\n\nTambién: *Hablar con una persona* · *Datos de contacto*`;
+    return `${intro}\n\n${options}\n\nTambién: 👤 *Hablar con una persona* · 📞 *Datos de contacto*`;
 }
 
 async function resolveMenuAnswer(key) {
@@ -238,48 +286,51 @@ async function applyLeadUpdates(conversationId, matchKey, intent) {
 }
 
 async function processBotMessage(conversationId, text) {
+    text = resolveRowId(text);
+    text = normalizeIntroChoice(text);
     const t = normalize(text);
     const ctx = await getConversationContext(conversationId);
     let intent = ctx.intent;
 
     if (!t || t === 'hola' || t === 'inicio') {
         await setConversationIntent(conversationId, null);
-        return { reply: await buildIntroReply(), hotLead: false, sector: null };
+        const reply = await buildIntroReply();
+        return introResponse(reply);
     }
 
     if (t === 'menu' || t === 'ayuda') {
         if (intent === 'ventas') {
-            return { reply: await buildSalesMenuReply(), hotLead: false, sector: ctx.sector };
+            const reply = await buildSalesMenuReply();
+            return salesMenuResponse(reply, { sector: ctx.sector });
         }
         if (intent === 'soporte') {
             const answer = await getFaqByKey('soporte');
             return { reply: answer, hotLead: false, sector: null };
         }
-        return { reply: await buildIntroReply(), hotLead: false, sector: null };
+        const reply = await buildIntroReply();
+        return introResponse(reply);
     }
 
     if (!intent) {
-        const intro = findIntroMatch(text);
+        let intro = findIntroMatch(text);
+        if (!intro) intro = await findIntroMatchFromDb(text);
         if (intro) {
             await applyLeadUpdates(conversationId, intro.key, intro.key);
             const answer = await resolveMenuAnswer(intro.key);
-            return {
-                reply: answer,
-                hotLead: intro.key === 'soporte',
-                sector: null
-            };
+            if (intro.key === 'ventas') {
+                return salesMenuResponse(answer, { hotLead: false });
+            }
+            return { reply: answer, hotLead: intro.key === 'soporte', sector: null };
         }
-        return {
-            reply: `${await buildIntroReply()}\n\n(Responde *1* para Soporte o *2* para Ventas)`,
-            hotLead: false,
-            sector: null
-        };
+        const reply = `${await buildIntroReply()}\n\n(Responde *1* para Soporte o *2* para Ventas)`;
+        return introResponse(reply);
     }
 
     if (intent === 'soporte') {
         if (t.includes('ventas') || t === '2') {
             await applyLeadUpdates(conversationId, 'ventas', 'ventas');
-            return { reply: await buildSalesMenuReply(), hotLead: false, sector: null };
+            const reply = await buildSalesMenuReply();
+            return salesMenuResponse(reply);
         }
         const humanMatch = findMenuMatch(text);
         if (humanMatch?.key === 'human' || humanMatch?.key === 'contact') {
@@ -295,11 +346,25 @@ async function processBotMessage(conversationId, text) {
             await applyLeadUpdates(conversationId, 'human', 'soporte');
             return { reply: await getFaqByKey('human'), hotLead: true, sector: null };
         }
+        const any = await findAnySectorOrKeyword(text, 'soporte');
+        if (any) {
+            const answer = any.kind === 'menu' ? any.row.answer : any.row.answer;
+            return { reply: answer, hotLead: false, sector: any.row.sector || null };
+        }
         const fallback = await getFaqByKey('fallback');
         return { reply: fallback, hotLead: false, sector: null };
     }
 
     // intent === ventas
+    if (t === '2' || t.includes('ventas')) {
+        const reply = await buildSalesMenuReply();
+        return salesMenuResponse(reply, { sector: ctx.sector });
+    }
+    if (t === '1' || t.includes('soporte')) {
+        await applyLeadUpdates(conversationId, 'soporte', 'soporte');
+        return { reply: await getFaqByKey('soporte'), hotLead: false, sector: null };
+    }
+
     const menuDirect = findMenuMatch(text);
     if (menuDirect) {
         const answer = await resolveMenuAnswer(menuDirect.key);
@@ -330,6 +395,27 @@ async function processBotMessage(conversationId, text) {
             );
         }
         return { reply: kwMatch.answer, hotLead: kwMatch.trigger_key === 'human', sector: kwMatch.sector };
+    }
+
+    const any = await findAnySectorOrKeyword(text, 'ventas');
+    if (any) {
+        const row = any.row;
+        if (any.kind === 'menu') {
+            await applyLeadUpdates(conversationId, row.trigger_key, 'ventas');
+            return {
+                reply: row.answer,
+                hotLead: row.trigger_key === 'human',
+                sector: row.sector || null
+            };
+        }
+        if (row.sector) {
+            await query(
+                `UPDATE leads SET sector = $2, score = GREATEST(score, 15), updated_at = NOW()
+                 WHERE conversation_id = $1`,
+                [conversationId, row.sector]
+            );
+        }
+        return { reply: row.answer, hotLead: row.trigger_key === 'human', sector: row.sector };
     }
 
     if (t.includes('whatsapp') || t.includes('wsp')) {

@@ -7,14 +7,14 @@ const BOT_SEED = [
         sector: null,
         keywords: null,
         sort_order: 1,
-        answer: `Hola, soy el asistente virtual de *CamSoft* (Milton Narvaez).
+        answer: `Hola 👋, soy el asistente virtual de *CamSoft* (Milton Narvaez).
 
 ¿Para qué necesitas el servicio hoy?
 
-*1.* Soporte — ayuda con un sistema o servicio que ya tienes
-*2.* Ventas — información sobre un proyecto nuevo o cotización
+*1.* 🛠 Soporte — ayuda con un sistema o servicio que ya tienes
+*2.* 💼 Ventas — información sobre un proyecto nuevo o cotización
 
-Responde *1*, *2* o escribe *soporte* / *ventas*.`
+Responde *1*, *2* o toca *Ver opciones* en el menú.`
     },
     {
         trigger_key: 'soporte',
@@ -52,7 +52,7 @@ Horario de respuesta: 24–48 h hábiles.`
         question: 'Sector público',
         faq_type: 'menu',
         sector: 'public',
-        keywords: 'publico,gobierno,estatal,municipio,alcaldia,gobernacion',
+        keywords: 'publico,gobierno,estatal,municipio,alcaldia,gobernacion,concejo,camara,pagina web,sitio web,portal web,web institucional,landing',
         sort_order: 4,
         answer: `*Sector público — CamSoft*
 
