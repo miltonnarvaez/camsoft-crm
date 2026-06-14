@@ -6,6 +6,11 @@ const {
     findOrCreateWhatsappConversation,
     sendText
 } = require('./evolution');
+const {
+    acquireInboundLock,
+    releaseInboundLock,
+    isLidDuplicateEvent
+} = require('./whatsapp-dedupe');
 
 function isIncomingMessageEvent(event) {
     const ev = String(event || '').toLowerCase();
@@ -65,14 +70,17 @@ async function handleWhatsappWebhook(payload, emitConversation) {
     const items = parseIncomingMessages(payload);
     if (!items.length) return { processed: 0 };
 
+    const event = payload.event || payload.type || 'desconocido';
+    console.log('[webhook whatsapp] evento:', event, 'items:', items.length);
+
     if (items[0]) {
         const k = items[0].key || {};
         console.log('[webhook whatsapp] destino:', {
             phone: items[0].phone,
             jid: items[0].jid,
             remoteJid: items[0].remoteJid,
-            senderPn: k.senderPn,
-            cleanedSenderPn: k.cleanedSenderPn
+            remoteJidAlt: items[0].remoteJidAlt || k.remoteJidAlt,
+            waMsgId: k.id
         });
     }
 
@@ -80,31 +88,55 @@ async function handleWhatsappWebhook(payload, emitConversation) {
     for (const item of items) {
         if (String(item.remoteJid).includes('@g.us')) continue;
 
-        const replyJid = item.jid || item.remoteJid;
-        const contactId = await findOrCreateWhatsappContact(
-            item.phone,
-            item.pushName,
-            replyJid
-        );
-        const conversationId = await findOrCreateWhatsappConversation(contactId);
-
-        const visitorMsg = await addMessage(conversationId, 'visitor', item.text, {
-            channel: 'whatsapp',
-            waMsgId: item.key?.id || null
-        });
-        const botResult = await processBotMessage(conversationId, item.text);
-        const botMsg = await addMessage(conversationId, 'bot', botResult.reply);
-
-        emitConversation(conversationId, 'message:new', { messages: [visitorMsg, botMsg] });
-
-        if (process.env.WHATSAPP_BOT_REPLY !== 'false') {
-            try {
-                await sendText(item.phone, botResult.reply, replyJid, item.remoteJid);
-            } catch (err) {
-                console.error('[whatsapp] auto-reply error', item.phone || replyJid, err.message);
-            }
+        if (isLidDuplicateEvent(item)) {
+            console.log('[webhook whatsapp] @lid duplicado ignorado:', item.key?.id);
+            continue;
         }
-        processed += 1;
+
+        const waMsgId = item.key?.id || null;
+        const locked = await acquireInboundLock(waMsgId, item.phone, item.text);
+        if (!locked) {
+            console.log('[webhook whatsapp] duplicado ignorado:', waMsgId || item.text?.slice(0, 40));
+            continue;
+        }
+
+        try {
+            const replyJid = item.jid || item.remoteJid;
+            const contactId = await findOrCreateWhatsappContact(
+                item.phone,
+                item.pushName,
+                replyJid
+            );
+            const conversationId = await findOrCreateWhatsappConversation(contactId);
+
+            const visitorMsg = await addMessage(conversationId, 'visitor', item.text, {
+                channel: 'whatsapp',
+                waMsgId
+            });
+            const botResult = await processBotMessage(conversationId, item.text);
+            const botMsg = await addMessage(conversationId, 'bot', botResult.reply);
+
+            emitConversation(conversationId, 'message:new', { messages: [visitorMsg, botMsg] });
+
+            if (process.env.WHATSAPP_BOT_REPLY !== 'false') {
+                try {
+                    await sendText(
+                        item.phone,
+                        botResult.reply,
+                        replyJid,
+                        item.remoteJid,
+                        item.remoteJidAlt || item.key?.remoteJidAlt,
+                        item.key
+                    );
+                } catch (err) {
+                    const detail = err?.message || JSON.stringify(err);
+                    console.error('[whatsapp] auto-reply error', item.phone || replyJid, detail);
+                }
+            }
+            processed += 1;
+        } finally {
+            releaseInboundLock(waMsgId, item.phone, item.text);
+        }
     }
     return { processed };
 }

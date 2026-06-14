@@ -132,7 +132,7 @@ Respuesta habitual: 24–48 h hábiles.`
         sort_order: 8,
         answer: `*Contacto CamSoft*
 📧 nf_alejo@yahoo.com
-📱 +57 317 374 2174
+📱 +57 316 681 2189
 🌐 camsoft.com.co
 
 Horario de respuesta: 24–48 h hábiles.

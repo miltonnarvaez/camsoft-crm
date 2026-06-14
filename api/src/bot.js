@@ -334,7 +334,7 @@ async function processBotMessage(conversationId, text) {
 
     if (t.includes('whatsapp') || t.includes('wsp')) {
         return {
-            reply: 'Puedes continuar por WhatsApp al +57 317 374 2174, o escribe *hablar con una persona*.',
+            reply: 'Puedes continuar por WhatsApp al +57 316 681 2189, o escribe *hablar con una persona*.',
             hotLead: true,
             sector: null
         };

@@ -25,13 +25,14 @@ async function evolutionFetch(path, options = {}) {
             data = { raw: text };
         }
         if (!res.ok) {
-            const msg =
+            const raw =
                 data?.message ||
                 data?.error ||
                 data?.response?.message ||
-                (typeof data?.response === 'string' ? data.response : null) ||
+                (typeof data?.response === 'string' ? data.response : data?.response) ||
                 (data?.raw ? String(data.raw).slice(0, 200) : null) ||
                 res.statusText;
+            const msg = typeof raw === 'object' ? JSON.stringify(raw) : String(raw);
             throw new Error(`Evolution API: ${msg}`);
         }
         return data;
@@ -105,9 +106,15 @@ async function deleteInstance() {
 }
 
 function webhookConfig() {
+    // En Linux el contenedor Evolution suele necesitar la IP gateway (ej. 172.18.0.1), no host.docker.internal.
     const url =
         process.env.CAMSOFT_WEBHOOK_URL ||
-        'http://host.docker.internal:3847/webhooks/whatsapp';
+        'http://172.18.0.1:3847/webhooks/whatsapp';
+    if (url.includes('host.docker.internal')) {
+        console.warn(
+            '[evolution] CAMSOFT_WEBHOOK_URL usa host.docker.internal; en muchos servidores falla. Usa la IP gateway Docker (ej. 172.18.0.1).'
+        );
+    }
     return {
         enabled: true,
         url,
@@ -118,6 +125,22 @@ function webhookConfig() {
 }
 
 async function ensureInstanceWebhook() {
+    const useGlobal = process.env.EVOLUTION_USE_GLOBAL_WEBHOOK !== 'false';
+    if (useGlobal) {
+        try {
+            await evolutionFetch(`/webhook/set/${INSTANCE()}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    webhook: { enabled: false, url: '', events: [] }
+                })
+            });
+            console.log('[evolution] webhook instancia OFF (webhook global Docker activo)');
+        } catch (err) {
+            console.warn('[evolution] ensureInstanceWebhook (off):', err.message);
+        }
+        return;
+    }
+
     const url = webhookConfig().url;
     const body = {
         webhook: {
@@ -251,46 +274,75 @@ function normalizeExternalId(externalId, phone) {
     return externalId ? String(externalId) : null;
 }
 
-/** WhatsApp nuevo usa @lid; el teléfono real viene en senderPn / cleanedSenderPn. */
+/** WhatsApp LID: remoteJid=@lid, teléfono real en remoteJidAlt / senderPn. */
 function resolveWhatsappDestination(key = {}, payload = {}) {
-    const remoteJid = key.remoteJid || key.remoteJidAlt || payload.sender || null;
+    const remoteJid = key.remoteJid || payload.sender || null;
+    const remoteJidAlt = key.remoteJidAlt || null;
+    const isLid = remoteJid && String(remoteJid).includes('@lid');
+
     const phone = normalizePhoneDigits(
         key.cleanedSenderPn ||
         extractPhoneFromJid(key.senderPn) ||
+        extractPhoneFromJid(remoteJidAlt) ||
         extractPhoneFromJid(key.participant) ||
-        extractPhoneFromJid(key.remoteJidAlt) ||
-        (remoteJid && !String(remoteJid).includes('@lid') ? extractPhoneFromJid(remoteJid) : null) ||
+        (!isLid ? extractPhoneFromJid(remoteJid) : null) ||
         extractPhoneFromJid(payload.sender)
     );
 
     const sendJid =
-        key.senderPn ||
-        (remoteJid && String(remoteJid).includes('@lid') ? remoteJid : null) ||
-        key.remoteJidAlt ||
-        (remoteJid && !String(remoteJid).includes('@lid') ? remoteJid : null) ||
-        (phone ? `${phone}@s.whatsapp.net` : null);
+        (isLid && remoteJidAlt ? remoteJidAlt : null) ||
+        (phone ? `${phone}@s.whatsapp.net` : null) ||
+        (key.senderPn && !String(key.senderPn).includes('@lid') ? key.senderPn : null) ||
+        (!isLid && remoteJid ? remoteJid : null) ||
+        remoteJidAlt ||
+        remoteJid ||
+        null;
 
     return {
         phone,
         jid: sendJid,
-        remoteJid: remoteJid || sendJid || null
+        remoteJid: remoteJid || sendJid || null,
+        remoteJidAlt
     };
 }
 
-function buildSendTargets(phone, jid, remoteJid) {
+function buildSendTargets(phone, jid, remoteJid, remoteJidAlt = null) {
     const targets = [];
-    for (const j of [jid, remoteJid]) {
-        if (j && String(j).includes('@')) targets.push(String(j));
-    }
     const digits = normalizePhoneDigits(phone);
-    if (digits) {
-        targets.push(digits);
-        targets.push(`${digits}@s.whatsapp.net`);
+    const alt = remoteJidAlt && String(remoteJidAlt).includes('@') ? String(remoteJidAlt) : null;
+
+    // JID completo primero — solo dígitos suele devolver OK en Evolution pero no llega al celular
+    if (alt && !alt.includes('@lid')) targets.push(alt);
+    if (digits) targets.push(`${digits}@s.whatsapp.net`);
+    for (const j of [jid, remoteJid]) {
+        if (!j) continue;
+        const s = String(j);
+        if (s.includes('@lid')) continue;
+        if (s.includes('@')) targets.push(s);
     }
+    // @lid al final — Evolution 2.4+ lo necesita si no hay remoteJidAlt
+    for (const j of [remoteJid, jid, alt]) {
+        if (j && String(j).includes('@lid')) targets.push(String(j));
+    }
+    if (digits) targets.push(digits);
     return [...new Set(targets.filter(Boolean))];
 }
 
-async function sendText(phone, text, jid = null, remoteJid = null) {
+function buildSendBody(number, text, quotedKey = null) {
+    const body = { number, text, linkPreview: false };
+    if (quotedKey?.id && quotedKey?.remoteJid) {
+        body.quoted = {
+            key: {
+                remoteJid: quotedKey.remoteJid,
+                fromMe: !!quotedKey.fromMe,
+                id: quotedKey.id
+            }
+        };
+    }
+    return body;
+}
+
+async function sendText(phone, text, jid = null, remoteJid = null, remoteJidAlt = null, quotedKey = null) {
     if (!text?.trim()) throw new Error('Mensaje vacío');
 
     const state = await getConnectionState();
@@ -298,7 +350,7 @@ async function sendText(phone, text, jid = null, remoteJid = null) {
         throw new Error(`WhatsApp desconectado (estado: ${state}). Reconecta en CRM → pestaña WA.`);
     }
 
-    const targets = buildSendTargets(phone, jid, remoteJid);
+    const targets = buildSendTargets(phone, jid, remoteJid, remoteJidAlt);
     if (!targets.length) throw new Error('Sin número o JID de destino para WhatsApp');
 
     let lastErr;
@@ -306,9 +358,10 @@ async function sendText(phone, text, jid = null, remoteJid = null) {
         try {
             const result = await evolutionFetch(`/message/sendText/${INSTANCE()}`, {
                 method: 'POST',
-                body: JSON.stringify({ number, text, delay: 500 })
+                body: JSON.stringify(buildSendBody(number, text, quotedKey))
             });
-            console.log('[whatsapp] enviado a', number);
+            const st = result?.message?.status || result?.status || 'ok';
+            console.log('[whatsapp] enviado a', number, 'status:', st);
             return result;
         } catch (err) {
             lastErr = err;
@@ -392,6 +445,7 @@ module.exports = {
     getConnectionState,
     sendText,
     extractPhoneFromJid,
+    normalizePhoneDigits,
     resolveWhatsappDestination,
     findOrCreateWhatsappContact,
     findOrCreateWhatsappConversation

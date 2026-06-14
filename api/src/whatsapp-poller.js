@@ -1,18 +1,9 @@
 const { query } = require('./db');
 const { handleWhatsappWebhook } = require('./whatsapp-webhook');
+const { isMessageProcessed } = require('./whatsapp-dedupe');
 
 const INSTANCE = () => process.env.EVOLUTION_INSTANCE || 'camsoft';
 const INTERVAL_MS = Number(process.env.WHATSAPP_POLLER_MS || 4000);
-
-/** IDs de mensajes WA ya procesados (Evolution key.id) */
-async function isMessageProcessed(waMsgId) {
-    if (!waMsgId) return true;
-    const { rows } = await query(
-        `SELECT 1 FROM messages WHERE metadata->>'waMsgId' = $1 LIMIT 1`,
-        [waMsgId]
-    );
-    return rows.length > 0;
-}
 
 function buildWebhookPayload(row) {
     const key = typeof row.key === 'string' ? JSON.parse(row.key) : row.key;
@@ -67,8 +58,8 @@ async function pollEvolutionMessages(emitConversation) {
 }
 
 function startWhatsappPoller(emitConversation) {
-    if (process.env.WHATSAPP_POLLER === 'false') return;
-    console.log(`[whatsapp-poller] activo cada ${INTERVAL_MS}ms (respaldo si webhook falla)`);
+    if (process.env.WHATSAPP_POLLER !== 'true') return;
+    console.log(`[whatsapp-poller] activo cada ${INTERVAL_MS}ms (solo si WHATSAPP_POLLER=true)`);
     setInterval(() => {
         pollEvolutionMessages(emitConversation).catch((err) => {
             console.warn('[whatsapp-poller]', err.message);
