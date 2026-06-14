@@ -12,26 +12,50 @@ const {
     isLidDuplicateEvent
 } = require('./whatsapp-dedupe');
 
-function isIncomingMessageEvent(event) {
+function parseMessageObject(data) {
+    let msg = data?.message ?? data;
+    if (typeof msg === 'string') {
+        try {
+            msg = JSON.parse(msg);
+        } catch (_) {
+            msg = {};
+        }
+    }
+    return msg || {};
+}
+
+function isInteractiveResponse(data) {
+    const msg = parseMessageObject(data);
+    return !!(
+        msg.listResponseMessage ||
+        msg.buttonsResponseMessage ||
+        msg.templateButtonReplyMessage
+    );
+}
+
+function isIncomingMessageEvent(event, data) {
     const ev = String(event || '').toLowerCase();
     if (!ev) return false;
-    if (ev.includes('update') || ev.includes('delete') || ev.includes('edit')) return false;
+    if (ev.includes('delete') || ev.includes('edit')) return false;
+    if (ev.includes('update')) return isInteractiveResponse(data);
     return ev.includes('upsert') || ev.includes('received') || ev === 'message';
 }
 
 function extractText(data) {
     if (!data) return '';
-    const msg = data.message || {};
-    const listId = msg.listResponseMessage?.singleSelectReply?.selectedRowId;
+    const msg = parseMessageObject(data);
+    const listReply = msg.listResponseMessage?.singleSelectReply;
+    const listId = listReply?.selectedRowId;
     const buttonId = msg.buttonsResponseMessage?.selectedButtonId
         || msg.templateButtonReplyMessage?.selectedId;
     if (listId) return String(listId);
     if (buttonId) return String(buttonId);
+    const display = listReply?.selectedDisplayText
+        || msg.buttonsResponseMessage?.selectedDisplayText;
+    if (display) return String(display);
     return (
         msg.conversation ||
         msg.extendedTextMessage?.text ||
-        msg.buttonsResponseMessage?.selectedDisplayText ||
-        msg.listResponseMessage?.singleSelectReply?.selectedRowId ||
         data.messageBody ||
         data.text ||
         ''
@@ -43,7 +67,7 @@ function parseIncomingMessages(payload) {
     const event = payload.event || payload.type;
     const data = payload.data || payload;
 
-    const isMessageEvent = event ? isIncomingMessageEvent(event) : false;
+    const isMessageEvent = event ? isIncomingMessageEvent(event, data) : false;
     const isMessagePayload = !event && data?.key?.remoteJid && extractText(data);
 
     if (!isMessageEvent && !isMessagePayload) return [];
@@ -76,7 +100,7 @@ async function handleWhatsappWebhook(payload, emitConversation) {
     if (!items.length) return { processed: 0 };
 
     const event = payload.event || payload.type || 'desconocido';
-    console.log('[webhook whatsapp] evento:', event, 'items:', items.length);
+    console.log('[webhook whatsapp] evento:', event, 'items:', items.length, 'texto:', items[0]?.text);
 
     if (items[0]) {
         const k = items[0].key || {};
@@ -84,7 +108,6 @@ async function handleWhatsappWebhook(payload, emitConversation) {
             phone: items[0].phone,
             jid: items[0].jid,
             remoteJid: items[0].remoteJid,
-            remoteJidAlt: items[0].remoteJidAlt || k.remoteJidAlt,
             waMsgId: k.id
         });
     }
@@ -94,14 +117,14 @@ async function handleWhatsappWebhook(payload, emitConversation) {
         if (String(item.remoteJid).includes('@g.us')) continue;
 
         if (isLidDuplicateEvent(item)) {
-            console.log('[webhook whatsapp] @lid duplicado ignorado:', item.key?.id);
+            console.log('[webhook whatsapp] @lid duplicado:', item.key?.id);
             continue;
         }
 
         const waMsgId = item.key?.id || null;
         const locked = await acquireInboundLock(waMsgId, item.phone, item.text);
         if (!locked) {
-            console.log('[webhook whatsapp] duplicado ignorado:', waMsgId || item.text?.slice(0, 40));
+            console.log('[webhook whatsapp] duplicado:', waMsgId || item.text?.slice(0, 40));
             continue;
         }
 

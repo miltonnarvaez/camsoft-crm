@@ -1,6 +1,6 @@
 const { query } = require('./db');
 const { BOT_SEED, INTRO_ITEMS, MENU_ITEMS } = require('./bot-content');
-const { INTRO_LIST, SAL_LIST, resolveRowId } = require('./bot-interactive');
+const { INTRO_BUTTONS, INTRO_LIST, SAL_LIST, resolveRowId } = require('./bot-interactive');
 
 function normalize(text) {
     return (text || '')
@@ -226,7 +226,7 @@ async function findAnySectorOrKeyword(text, intent) {
 }
 
 function introResponse(reply, extra = {}) {
-    return { reply, interactive: INTRO_LIST, hotLead: false, sector: null, ...extra };
+    return { reply, interactive: INTRO_BUTTONS, hotLead: false, sector: null, ...extra };
 }
 
 function salesMenuResponse(reply, extra = {}) {
@@ -234,16 +234,17 @@ function salesMenuResponse(reply, extra = {}) {
 }
 
 async function buildSalesMenuReply() {
-    const intro = `*Ventas — CamSoft*
+    return `*Ventas — CamSoft*
 
-Desarrollamos software a medida. ¿En qué sector necesitas apoyo?`;
-    const options = MENU_ITEMS.filter((m) => m.key !== 'human' && m.key !== 'contact')
-        .map((m) => {
-            const icons = { public: '🏛', health: '🏥', education: '🎓' };
-            return `• ${icons[m.key] || '•'} ${m.label}`;
-        })
-        .join('\n');
-    return `${intro}\n\n${options}\n\nTambién: 👤 *Hablar con una persona* · 📞 *Datos de contacto*`;
+Desarrollamos software a medida. *Escribe el número* o toca *Elegir sector*:
+
+*1.* 🏛 Sector público (concejos, portales)
+*2.* 🏥 Sector salud
+*3.* 🎓 Sector educación
+*4.* 👤 Hablar con una persona
+*5.* 📞 Datos de contacto
+
+También puedes escribir *concejo*, *LMS*, *cotización*, etc.`;
 }
 
 async function resolveMenuAnswer(key) {
@@ -356,6 +357,24 @@ async function processBotMessage(conversationId, text) {
     }
 
     // intent === ventas
+    const SAL_NUM = {
+        '1': 'public',
+        '2': 'health',
+        '3': 'education',
+        '4': 'human',
+        '5': 'contact'
+    };
+    if (SALES_NUM[t]) {
+        const key = SAL_NUM[t];
+        const answer = await resolveMenuAnswer(key);
+        await applyLeadUpdates(conversationId, key, 'ventas');
+        return {
+            reply: answer,
+            hotLead: key === 'human',
+            sector: ['public', 'health', 'education'].includes(key) ? key : null
+        };
+    }
+
     if (t === '2' || t.includes('ventas')) {
         const reply = await buildSalesMenuReply();
         return salesMenuResponse(reply, { sector: ctx.sector });

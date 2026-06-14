@@ -402,8 +402,20 @@ async function sendList(phone, list, jid = null, remoteJid = null, remoteJidAlt 
         title: list.title,
         description: list.description,
         buttonText: list.buttonText,
-        footerText: list.footerText || '',
+        footerText: list.footerText || 'CamSoft',
         values: list.values,
+        linkPreview: false,
+        ...(quotedKey?.id ? { quoted: buildSendBody(number, '', quotedKey).quoted } : {})
+    }));
+}
+
+async function sendButtons(phone, buttons, jid = null, remoteJid = null, remoteJidAlt = null, quotedKey = null) {
+    return sendWithTargets('/message/sendButtons', phone, jid, remoteJid, remoteJidAlt, (number) => ({
+        number,
+        title: buttons.title,
+        description: buttons.description,
+        footer: buttons.footer || '',
+        buttons: buttons.buttons,
         linkPreview: false,
         ...(quotedKey?.id ? { quoted: buildSendBody(number, '', quotedKey).quoted } : {})
     }));
@@ -413,11 +425,20 @@ async function sendBotReply(phone, botResult, jid = null, remoteJid = null, remo
     const interactive = botResult?.interactive;
     const useInteractive = process.env.WHATSAPP_INTERACTIVE !== 'false';
 
-    if (useInteractive && interactive?.type === 'list' && interactive.values?.length) {
-        try {
-            return await sendList(phone, interactive, jid, remoteJid, remoteJidAlt, quotedKey);
-        } catch (err) {
-            console.warn('[whatsapp] sendList fallback a texto:', err.message);
+    if (useInteractive && interactive) {
+        if (interactive.type === 'buttons' && interactive.buttons?.length) {
+            try {
+                return await sendButtons(phone, interactive, jid, remoteJid, remoteJidAlt, quotedKey);
+            } catch (err) {
+                console.warn('[whatsapp] sendButtons fallback:', err.message);
+            }
+        }
+        if (interactive.type === 'list' && interactive.values?.length) {
+            try {
+                return await sendList(phone, interactive, jid, remoteJid, remoteJidAlt, quotedKey);
+            } catch (err) {
+                console.warn('[whatsapp] sendList fallback:', err.message);
+            }
         }
     }
 
@@ -498,6 +519,7 @@ module.exports = {
     getConnectionState,
     sendText,
     sendList,
+    sendButtons,
     sendBotReply,
     extractPhoneFromJid,
     normalizePhoneDigits,

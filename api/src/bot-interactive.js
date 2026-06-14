@@ -1,5 +1,17 @@
 /** Menús interactivos WhatsApp (listas / botones Evolution API). */
 
+const INTRO_BUTTONS = {
+    type: 'buttons',
+    title: 'CamSoft',
+    description: '¿Para qué necesitas el servicio hoy?',
+    footer: 'Toca un botón o escribe *1* / *2*',
+    buttons: [
+        { type: 'reply', displayText: '🛠 Soporte', id: 'intro_1' },
+        { type: 'reply', displayText: '💼 Ventas', id: 'intro_2' },
+        { type: 'reply', displayText: '📋 Menú', id: 'menu' }
+    ]
+};
+
 const INTRO_LIST = {
     type: 'list',
     title: 'CamSoft',
@@ -85,10 +97,20 @@ const ROW_ID_MAP = {
 function resolveRowId(text) {
     const t = (text || '').trim();
     if (ROW_ID_MAP[t]) return ROW_ID_MAP[t];
+    const norm = t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (norm.includes('soporte') || norm.includes('support')) return '1';
+    if (norm.includes('ventas') || norm.includes('comercial')) return '2';
+    if (norm.includes('public') || norm.includes('concejo') || norm.includes('municip')) return 'public';
+    if (norm.includes('salud') || norm.includes('clinic') || norm.includes('hospital')) return 'health';
+    if (norm.includes('educacion') || norm.includes('colegio') || norm.includes('lms')) return 'education';
+    if (norm.includes('humano') || norm.includes('persona') || norm.includes('asesor')) return 'hablar con una persona';
+    if (norm.includes('contacto') || norm.includes('telefono')) return 'contacto';
+    if (norm === 'menu' || norm.includes('menu')) return 'menu';
     return text;
 }
 
 module.exports = {
+    INTRO_BUTTONS,
     INTRO_LIST,
     SAL_LIST,
     ROW_ID_MAP,
