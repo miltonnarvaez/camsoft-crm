@@ -7,14 +7,16 @@ const BOT_SEED = [
         sector: null,
         keywords: null,
         sort_order: 1,
-        answer: `Hola 👋, soy el asistente de *CamSoft* (Milton Narvaez).
+        answer: `Hola 👋 Soy el asistente de *CamSoft* (Milton Narvaez).
 
-¿Para qué necesitas el servicio?
+Responde *escribiendo* un mensaje (no toques el texto):
 
-*1* 🛠 Soporte — ayuda con un sistema que ya tienes
-*2* 💼 Ventas — proyecto nuevo o cotización
+1 = 🛠 Soporte
+2 = 💼 Ventas
 
-👉 *Escribe 1 o 2* (no hace falta tocar iconos).`
+_La negrita es solo diseño. Debes escribir 1 o 2 y enviar._
+
+¿Dudas? Escribe: ayuda`
     },
     {
         trigger_key: 'soporte',
@@ -35,7 +37,7 @@ Para atenderte mejor, cuéntanos:
 • ¿Qué sistema o módulo presenta el problema?
 • ¿Qué error ves o qué dejó de funcionar?
 
-Escribe *hablar con una persona* y un técnico te contactará.
+Escribe: hablar con una persona
 Horario de respuesta: 24–48 h hábiles.`
     },
     {
@@ -63,9 +65,9 @@ Desarrollamos soluciones como:
 • Trámites y ventanilla única digital
 • Integración con sistemas existentes
 
-¿Qué necesitas?
-Escribe *PQRSD*, *transparencia*, *portal* o *cotización*
-También: *hablar con una persona* para que Milton te asesore.`
+¿Qué necesitas? Escribe una palabra, por ejemplo:
+PQRSD, transparencia, portal, cotización
+O escribe: hablar con una persona`
     },
     {
         trigger_key: 'health',
@@ -83,9 +85,9 @@ Trabajamos en:
 • Farmacia e inventario
 • Reportes para auditoría y calidad
 
-Cuéntame tu necesidad:
-Escribe *historia clínica*, *citas*, *telemedicina* o *cotización*
-O *hablar con una persona* para una asesoría directa.`
+Cuéntame tu necesidad. Escribe, por ejemplo:
+historia clínica, citas, telemedicina, cotización
+O escribe: hablar con una persona`
     },
     {
         trigger_key: 'education',
@@ -103,9 +105,9 @@ Desarrollamos:
 • Bibliotecas digitales
 • Reportes académicos e integraciones
 
-¿Qué buscas?
-Escribe *LMS*, *matrículas*, *MVP*, *migración* o *cotización*
-También puedes pedir *hablar con una persona*.`
+¿Qué buscas? Escribe, por ejemplo:
+LMS, matrículas, MVP, migración, cotización
+O escribe: hablar con una persona`
     },
     {
         trigger_key: 'human',
@@ -136,7 +138,7 @@ Respuesta habitual: 24–48 h hábiles.`
 🌐 camsoft.com.co
 
 Horario de respuesta: 24–48 h hábiles.
-Escribe *menu* para ver opciones del asistente.`
+Escribe menu para volver al inicio.`
     },
     {
         trigger_key: 'fallback',
@@ -145,13 +147,16 @@ Escribe *menu* para ver opciones del asistente.`
         sector: null,
         keywords: null,
         sort_order: 99,
-        answer: `Gracias por tu mensaje.
+        answer: `No entendí tu mensaje.
 
-Escribe *menu* para volver al inicio:
-*1.* Soporte
-*2.* Ventas
+Recuerda: debes *escribir* y enviar (no tocar el texto).
 
-O escribe *hablar con una persona* y Milton te responderá.`
+• menu → volver al inicio
+• 1 → Soporte
+• 2 → Ventas
+• ayuda → cómo usar el chat
+
+O escribe: hablar con una persona`
     },
     {
         trigger_key: 'kw_support_access',

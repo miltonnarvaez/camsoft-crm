@@ -1,6 +1,7 @@
 const { query } = require('./db');
 const { BOT_SEED, INTRO_ITEMS, MENU_ITEMS } = require('./bot-content');
 const { INTRO_BUTTONS, INTRO_LIST, SAL_LIST, resolveRowId } = require('./bot-interactive');
+const { BOT_USAGE_HELP } = require('./bot-help');
 
 function normalize(text) {
     return (text || '')
@@ -244,15 +245,15 @@ function salesMenuResponse(reply, extra = {}) {
 async function buildSalesMenuReply() {
     return `*Ventas — CamSoft*
 
-Desarrollamos software a medida. *Escribe el número* o toca *Elegir sector*:
+Responde *escribiendo* el número (no toques el mensaje):
 
-*1.* 🏛 Sector público (concejos, portales)
-*2.* 🏥 Sector salud
-*3.* 🎓 Sector educación
-*4.* 👤 Hablar con una persona
-*5.* 📞 Datos de contacto
+1 = 🏛 Sector público (concejos, portales)
+2 = 🏥 Sector salud
+3 = 🎓 Sector educación
+4 = 👤 Hablar con una persona
+5 = 📞 Datos de contacto
 
-También puedes escribir *concejo*, *LMS*, *cotización*, etc.`;
+También puedes escribir: concejo, LMS, cotización, etc.`;
 }
 
 async function resolveMenuAnswer(key) {
@@ -307,7 +308,10 @@ async function processBotMessage(conversationId, text) {
         return introResponse(reply);
     }
 
-    if (t === 'menu' || t === 'ayuda') {
+    if (t === 'menu' || t === 'ayuda' || t === 'help' || t.includes('como funciona') || t.includes('que escribo') || t.includes('no entiendo')) {
+        if (t === 'ayuda' || t === 'help' || t.includes('como funciona') || t.includes('que escribo') || t.includes('no entiendo')) {
+            return { reply: BOT_USAGE_HELP, hotLead: false, sector: ctx.sector };
+        }
         if (intent === 'ventas') {
             const reply = await buildSalesMenuReply();
             return salesMenuResponse(reply, { sector: ctx.sector });
@@ -331,7 +335,7 @@ async function processBotMessage(conversationId, text) {
             }
             return { reply: answer, hotLead: intro.key === 'soporte', sector: null };
         }
-        const reply = `${await buildIntroReply()}\n\n(Responde *1* para Soporte o *2* para Ventas)`;
+        const reply = `${await buildIntroReply()}\n\n(No entendí. Escribe solo: 1, 2, soporte, ventas o ayuda)`;
         return introResponse(reply);
     }
 
