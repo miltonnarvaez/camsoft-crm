@@ -166,11 +166,11 @@ function findIntroMatch(text) {
 }
 
 const SECTOR_MENU_ALIASES = {
-    public: ['sector publico', 'publico', 'gobierno', 'concejo', 'municipio', 'alcaldia', 'camara'],
-    health: ['sector salud', 'salud', 'hospital', 'clinica', 'ips', 'eps', 'medicina'],
-    education: ['sector educacion', 'sector educación', 'educacion', 'colegio', 'universidad', 'institucion'],
-    human: ['hablar con una persona', 'humano', 'persona', 'asesor', 'milton', 'agente'],
-    contact: ['contacto', 'datos de contacto', 'telefono', 'correo', 'email', 'whatsapp']
+    public: ['sector publico', 'publico', 'gobierno', 'concejo', 'municipio', 'alcaldia', 'camara', 'estatal', 'territorial'],
+    health: ['sector salud', 'salud', 'hospital', 'clinica', 'ips', 'eps', 'medicina', 'medico', 'odontologia'],
+    education: ['sector educacion', 'sector educación', 'educacion', 'colegio', 'universidad', 'institucion', 'escuela', 'lms'],
+    human: ['hablar con una persona', 'humano', 'persona', 'asesor', 'milton', 'agente', 'llamar', 'telefono milton'],
+    contact: ['contacto', 'datos de contacto', 'telefono', 'correo', 'email', 'whatsapp', '3166812189']
 };
 
 function findMenuMatch(text) {

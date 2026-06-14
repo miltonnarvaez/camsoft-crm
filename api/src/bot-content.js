@@ -1,5 +1,7 @@
 /** Contenido inicial del bot CamSoft — se inserta/actualiza al arrancar la API */
-const BOT_SEED = [
+const { BOT_SEED_EXTRA } = require('./bot-content-extra');
+
+const BOT_SEED_BASE = [
     {
         trigger_key: 'greeting',
         question: 'Saludo principal',
@@ -550,10 +552,13 @@ Escribe: hablar con una persona para definir arquitectura.`
 Incluimos manuales, videos cortos y sesiones de capacitación según el proyecto.
 
 Escribe: hablar con una persona`
-    }
+    },
+    ...BOT_SEED_EXTRA
 ];
 
-const BOT_CONTENT_VERSION = 'v4-2025';
+const BOT_SEED = BOT_SEED_BASE;
+
+const BOT_CONTENT_VERSION = 'v5-max-2025';
 
 const INTRO_ITEMS = [
     { key: 'soporte', label: 'Soporte', keywords: '1,soporte,support,tecnico,asistencia,falla,error,problema' },
