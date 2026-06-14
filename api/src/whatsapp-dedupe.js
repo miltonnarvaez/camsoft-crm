@@ -9,7 +9,8 @@ function dedupeKeys(waMsgId, phone, text) {
     const body = String(text || '').trim().toLowerCase().slice(0, 160);
     const keys = [];
     if (waMsgId) keys.push(`id:${waMsgId}`);
-    if (digits && body) keys.push(`fp:${digits}:${body}`);
+    // No fingerprint para opciones de menú (1–5): el usuario puede repetir el mismo dígito en otro paso.
+    if (digits && body && !/^[1-5]$/.test(body)) keys.push(`fp:${digits}:${body}`);
     return keys;
 }
 
@@ -27,6 +28,7 @@ async function isRecentDuplicateByContent(phone, text) {
     const digits = normalizePhoneDigits(phone);
     const body = String(text || '').trim().toLowerCase();
     if (!digits || !body) return false;
+    if (/^[1-5]$/.test(body)) return false;
     const { rows } = await query(
         `SELECT 1 FROM messages m
          JOIN conversations c ON c.id = m.conversation_id

@@ -11,12 +11,10 @@ const BOT_SEED_BASE = [
         sort_order: 1,
         answer: `Hola 👋 Soy el asistente de *CamSoft* (Milton Narvaez).
 
-Responde *escribiendo* un mensaje (no toques el texto):
+Escribe *1* o *2*:
 
 1 = 🛠 Soporte
 2 = 💼 Ventas
-
-_La negrita es solo diseño. Debes escribir 1 o 2 y enviar._
 
 ¿Dudas? Escribe: ayuda`
     },
@@ -150,8 +148,6 @@ Escribe menu para volver al inicio.`
         keywords: null,
         sort_order: 99,
         answer: `No entendí tu mensaje.
-
-Recuerda: debes *escribir* y enviar (no tocar el texto).
 
 • menu → volver al inicio
 • 1 → Soporte
@@ -558,7 +554,7 @@ Escribe: hablar con una persona`
 
 const BOT_SEED = BOT_SEED_BASE;
 
-const BOT_CONTENT_VERSION = 'v5-max-2025';
+const BOT_CONTENT_VERSION = 'v6-fix-menu-2025';
 
 const INTRO_ITEMS = [
     { key: 'soporte', label: 'Soporte', keywords: '1,soporte,support,tecnico,asistencia,falla,error,problema' },

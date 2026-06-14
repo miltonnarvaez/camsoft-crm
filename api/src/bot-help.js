@@ -1,14 +1,13 @@
-/** Texto de ayuda — WhatsApp: solo escribir, no tocar */
+/** Texto de ayuda — WhatsApp */
 const BOT_USAGE_HELP = `📌 *Cómo funciona este chat*
 
-Debes *escribir* tu respuesta y enviarla (como un normal).
-
-✅ Escribe: 1, 2, ventas, menu, concejo, cotización
-❌ No toques palabras ni iconos del mensaje
+Escribe tu respuesta y envía (como un mensaje normal).
 
 *Menú principal:*
 1 = Soporte
 2 = Ventas
+
+También: menu, ventas, concejo, cotización
 
 Escribe menu para volver al inicio.`;
 

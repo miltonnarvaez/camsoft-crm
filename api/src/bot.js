@@ -24,7 +24,8 @@ function textMatchesKeywords(text, keywords) {
     const list = parseKeywordList(keywords);
     return list.some((k) => {
         if (k === '1' || k === '2') return t === k;
-        return t.includes(k) || (k.length >= 4 && k.includes(t));
+        if (k.length < 3) return t === k;
+        return t.includes(k) || (k.length >= 5 && k.includes(t));
     });
 }
 
@@ -261,7 +262,7 @@ function salesMenuResponse(reply, extra = {}) {
 async function buildSalesMenuReply() {
     return `*Ventas — CamSoft*
 
-Responde *escribiendo* el número (no toques el mensaje):
+Escribe *1*, *2*, *3*, *4* o *5*:
 
 1 = 🏛 Sector público (concejos, portales)
 2 = 🏥 Sector salud
@@ -394,7 +395,7 @@ async function processBotMessage(conversationId, text) {
         '4': 'human',
         '5': 'contact'
     };
-    if (SALES_NUM[t]) {
+    if (SAL_NUM[t]) {
         const key = SAL_NUM[t];
         const answer = await resolveMenuAnswer(key);
         await applyLeadUpdates(conversationId, key, 'ventas');
@@ -405,11 +406,11 @@ async function processBotMessage(conversationId, text) {
         };
     }
 
-    if (t === '2' || t.includes('ventas')) {
+    if (t.includes('ventas')) {
         const reply = await buildSalesMenuReply();
         return salesMenuResponse(reply, { sector: ctx.sector });
     }
-    if (t === '1' || t.includes('soporte')) {
+    if (t.includes('soporte')) {
         await applyLeadUpdates(conversationId, 'soporte', 'soporte');
         return { reply: await safeAnswer('soporte'), hotLead: false, sector: null };
     }
