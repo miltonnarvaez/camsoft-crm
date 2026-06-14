@@ -423,26 +423,29 @@ async function sendButtons(phone, buttons, jid = null, remoteJid = null, remoteJ
 
 async function sendBotReply(phone, botResult, jid = null, remoteJid = null, remoteJidAlt = null, quotedKey = null) {
     const interactive = botResult?.interactive;
-    const useInteractive = process.env.WHATSAPP_INTERACTIVE !== 'false';
+    const useInteractive = process.env.WHATSAPP_INTERACTIVE === 'true';
+    const replyText = botResult?.reply?.trim();
+
+    if (!replyText) {
+        throw new Error('Respuesta del bot vacía');
+    }
+
+    // Siempre enviar texto primero — Baileys a menudo acepta botones pero no los entrega al celular
+    const textResult = await sendText(phone, replyText, jid, remoteJid, remoteJidAlt, quotedKey);
 
     if (useInteractive && interactive) {
-        if (interactive.type === 'buttons' && interactive.buttons?.length) {
-            try {
-                return await sendButtons(phone, interactive, jid, remoteJid, remoteJidAlt, quotedKey);
-            } catch (err) {
-                console.warn('[whatsapp] sendButtons fallback:', err.message);
+        try {
+            if (interactive.type === 'buttons' && interactive.buttons?.length) {
+                await sendButtons(phone, interactive, jid, remoteJid, remoteJidAlt, quotedKey);
+            } else if (interactive.type === 'list' && interactive.values?.length) {
+                await sendList(phone, interactive, jid, remoteJid, remoteJidAlt, quotedKey);
             }
-        }
-        if (interactive.type === 'list' && interactive.values?.length) {
-            try {
-                return await sendList(phone, interactive, jid, remoteJid, remoteJidAlt, quotedKey);
-            } catch (err) {
-                console.warn('[whatsapp] sendList fallback:', err.message);
-            }
+        } catch (err) {
+            console.warn('[whatsapp] interactivo extra falló (texto ya enviado):', err.message);
         }
     }
 
-    return sendText(phone, botResult.reply, jid, remoteJid, remoteJidAlt, quotedKey);
+    return textResult;
 }
 
 async function findOrCreateWhatsappContact(phone, name, externalId = null) {

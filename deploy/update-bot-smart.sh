@@ -17,8 +17,8 @@ seedBotContent(true).then(() => {
 "
 
 grep -q '^WHATSAPP_INTERACTIVE=' /var/www/camsoft-crm/.env && \
-  sed -i 's/^WHATSAPP_INTERACTIVE=.*/WHATSAPP_INTERACTIVE=true/' /var/www/camsoft-crm/.env || \
-  echo 'WHATSAPP_INTERACTIVE=true' >> /var/www/camsoft-crm/.env
+  sed -i 's/^WHATSAPP_INTERACTIVE=.*/WHATSAPP_INTERACTIVE=false/' /var/www/camsoft-crm/.env || \
+  echo 'WHATSAPP_INTERACTIVE=false' >> /var/www/camsoft-crm/.env
 
 systemctl restart camsoft-crm
 sleep 2

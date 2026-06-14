@@ -226,11 +226,19 @@ async function findAnySectorOrKeyword(text, intent) {
 }
 
 function introResponse(reply, extra = {}) {
-    return { reply, interactive: INTRO_BUTTONS, hotLead: false, sector: null, ...extra };
+    const out = { reply, hotLead: false, sector: null, ...extra };
+    if (process.env.WHATSAPP_INTERACTIVE === 'true') {
+        out.interactive = INTRO_BUTTONS;
+    }
+    return out;
 }
 
 function salesMenuResponse(reply, extra = {}) {
-    return { reply, interactive: SAL_LIST, ...extra };
+    const out = { reply, ...extra };
+    if (process.env.WHATSAPP_INTERACTIVE === 'true') {
+        out.interactive = SAL_LIST;
+    }
+    return out;
 }
 
 async function buildSalesMenuReply() {

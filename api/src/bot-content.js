@@ -7,14 +7,14 @@ const BOT_SEED = [
         sector: null,
         keywords: null,
         sort_order: 1,
-        answer: `Hola 👋, soy el asistente virtual de *CamSoft* (Milton Narvaez).
+        answer: `Hola 👋, soy el asistente de *CamSoft* (Milton Narvaez).
 
-¿Para qué necesitas el servicio hoy?
+¿Para qué necesitas el servicio?
 
-*1.* 🛠 Soporte — ayuda con un sistema o servicio que ya tienes
-*2.* 💼 Ventas — información sobre un proyecto nuevo o cotización
+*1* 🛠 Soporte — ayuda con un sistema que ya tienes
+*2* 💼 Ventas — proyecto nuevo o cotización
 
-Responde *1*, *2* o toca *Ver opciones* en el menú.`
+👉 *Escribe 1 o 2* (no hace falta tocar iconos).`
     },
     {
         trigger_key: 'soporte',
